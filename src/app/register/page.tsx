@@ -3,10 +3,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     fullname: '',
     email: '',
@@ -42,24 +45,22 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // TODO: Implement Supabase authentication
-      console.log('Registration attempt:', formData)
-      // const { data, error } = await supabase.auth.signUp({
-      //   email: formData.email,
-      //   password: formData.password,
-      //   options: {
-      //     data: {
-      //       fullname: formData.fullname,
-      //       phone: formData.phone,
-      //       address: formData.address,
-      //     },
-      //   },
-      // })
-      
-      // if (error) throw error
-      
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            fullname: formData.fullname,
+            phone: formData.phone,
+            address: formData.address,
+          },
+        },
+      })
+
+      if (error) throw error
+
       // Redirect to KYC verification
-      // router.push('/kyc')
+      router.push('/kyc')
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {
