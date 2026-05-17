@@ -72,7 +72,12 @@ export default function RegisterPage() {
         router.push('/dashboard')
       }
     } catch (err: any) {
-      setError(err.message || 'Registration failed')
+      // Check if error is related to email confirmation
+      if (err.message?.includes('email') || err.message?.includes('Email')) {
+        setError('Email confirmation service is not configured. Please contact support or try again later.')
+      } else {
+        setError(err.message || 'Registration failed')
+      }
     } finally {
       setLoading(false)
     }
