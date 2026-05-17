@@ -220,45 +220,39 @@ export default function CheckoutContent() {
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="mt-4 text-sm text-gray-600 space-y-3"
+                    className="mt-4 text-sm text-gray-600 space-y-3 max-h-96 overflow-y-auto"
                   >
                     <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h4 className="font-semibold text-navy-900 mb-2">Client Responsibilities</h4>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>Provide accurate information for installation</li>
-                        <li>Ensure proper access to installation location</li>
-                        <li>Maintain the security equipment properly</li>
-                        <li>Report any issues within 24 hours</li>
-                        <li>Pay all fees on time as agreed</li>
-                      </ul>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h4 className="font-semibold text-navy-900 mb-2">Seller Responsibilities</h4>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>Provide professional installation service</li>
-                        <li>Ensure equipment quality and functionality</li>
-                        <li>Offer 24/7 customer support</li>
-                        <li>Honor warranty terms as specified</li>
-                        <li>Protect client data and privacy</li>
-                      </ul>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h4 className="font-semibold text-navy-900 mb-2">Payment Terms</h4>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>Full payment required before installation</li>
-                        <li>All payments are non-refundable after 7 days</li>
-                        <li>Installation fee is included in package price</li>
-                        <li>Additional charges may apply for extra services</li>
-                      </ul>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h4 className="font-semibold text-navy-900 mb-2">Warranty</h4>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>1-year warranty on all equipment</li>
-                        <li>Free replacement for defective units</li>
-                        <li>Labor warranty for 6 months</li>
-                        <li>Warranty void if equipment is tampered with</li>
-                      </ul>
+                      <h4 className="font-semibold text-navy-900 mb-2">TERMS AND CONDITIONS AGREEMENT</h4>
+                      <p className="text-xs text-gray-500 mb-2">This Terms and Conditions Agreement is entered into by and between:</p>
+                      <p className="text-xs text-gray-500 mb-2">Client: ___________________________</p>
+                      <p className="text-xs text-gray-500 mb-2">Developer: ___________________________</p>
+                      <p className="text-xs text-gray-500 mb-2">Project: Real-Time Alert and Notification System (Project RAN)</p>
+                      <p className="text-xs text-gray-500 mb-4">Effective Date: ___________________________</p>
+                      
+                      <div className="space-y-3 text-xs">
+                        <div><strong>1. ACCEPTANCE OF TERMS</strong><p>By availing and using the Project RAN, the Client agrees to be bound by all the terms and conditions stated herein.</p></div>
+                        <div><strong>2. DESCRIPTION OF SERVICE</strong><p>Project RAN is a real-time emergency alert system that enables the Client to send immediate alerts to the PICC through a push-button device with GPS tracking and CCTV verification for rapid response.</p></div>
+                        <div><strong>3. Scope of Work</strong><p>The Developer agrees to design, install, and implement the Real-Time Alert and Notification System, including devices, CCTV integration, and connectivity with the Provincial Integrated Command Center (PICC).</p></div>
+                        <div><strong>4. Subscription and Package Cost</strong><p>The system is offered as a package deal amounting to ₱20,000, payable upon subscription. This includes the device, installation, and system setup. Payment is required prior to activation.</p></div>
+                        <div><strong>5. Subscription Term</strong><p>The service is valid for one (1) year from activation and is renewable annually. Upon renewal, the Client shall cover the cost of damaged or defective parts.</p></div>
+                        <div><strong>6. Monthly Maintenance Fee</strong><p>The Client agrees to pay a monthly maintenance fee of ₱500. Non-payment may result in service suspension.</p></div>
+                        <div><strong>7. WEAR AND TEAR CHARGES</strong><p>Upon renewal, the system shall be inspected. Any damage or wear and tear shall incur additional charges, including repairs, replacement of parts, and necessary upgrades. All such costs shall be shouldered by the Client.</p></div>
+                        <div><strong>8. Simulation Exercise (SIMEX)</strong><p>The Client agrees to participate in Simulation Exercises (SIMEX) conducted by PICC for calibration and testing purposes.</p></div>
+                        <div><strong>9. CCTV Installation</strong><p>The Client agrees to allow CCTV installation in strategic locations determined by the Developer or PICC and shall not tamper with equipment.</p></div>
+                        <div><strong>10. USE OF SERVICE</strong><p>The system shall be used strictly for emergency purposes only. The Client shall not trigger false or malicious alerts, tamper with the device, or use the system for unauthorized purposes.</p></div>
+                        <div><strong>11. False ALERT POLICY</strong><p>The Client is allowed a maximum of three (3) false alerts. Any excess false alert shall be charged ₱100.00 per incident. Repeated misuse may result in warning, suspension, or termination of service.</p></div>
+                        <div><strong>12. Client Responsibilities</strong><p>The Client agrees to use the system responsibly, provide access for maintenance, and coordinate when necessary.</p></div>
+                        <div><strong>13. SERVICE LEVEL</strong><p>The Developer shall provide 24/7 monitoring, alert acknowledgment within 1–3 minutes, dispatch within 1-3 minutes, and minimum 95% system uptime.</p></div>
+                        <div><strong>14. DEVICE RESPONSIBILITY</strong><p>The Client is responsible for safekeeping of the device and preventing damage or misuse. Repair or replacement due to negligence shall be charged to the Client.</p></div>
+                        <div><strong>15. DATA PRIVACY</strong><p>All data shall be handled in accordance with the Data Privacy Act of 2012 and used solely for emergency and law enforcement purposes.</p></div>
+                        <div><strong>16. LIMITATION OF LIABILITY</strong><p>The Developer shall not be liable for delays due to external factors, force majeure events, or misuse of the system by the Client.</p></div>
+                        <div><strong>17. Termination</strong><p>The Developer may terminate service due to non-payment, misuse of system, or breach of agreement. The Client may terminate with prior written notice and settlement of obligations.</p></div>
+                        <div><strong>18. Governing Law</strong><p>This Agreement shall be governed by the laws of the Republic of the Philippines.</p></div>
+                        <div><strong>19. DISPUTE RESOLUTION</strong><p>Disputes shall be resolved through negotiation, mediation, or legal action.</p></div>
+                        <div><strong>20. EFFECTIVITY</strong><p>This Agreement shall take effect upon signing or system activation.</p></div>
+                        <div><strong>21. ACCEPTANCE</strong><p>By checking the agree box below, both parties agree to all terms stated herein.</p></div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
