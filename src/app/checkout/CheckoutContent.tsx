@@ -1,17 +1,47 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
-import { Shield, CreditCard, Smartphone, Building2, Check } from 'lucide-react'
+import { Shield, CreditCard, Smartphone, Building2, Check, FileText } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function CheckoutContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const packageId = searchParams.get('package')
   const [selectedPayment, setSelectedPayment] = useState('gcash')
   const [loading, setLoading] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
+  const [agreed, setAgreed] = useState(false)
+  const [showPolicy, setShowPolicy] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) {
+        router.push('/login')
+      } else {
+        setAuthenticated(true)
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  if (!authenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   const packages = [
     { id: '1', name: 'Basic Protection', price: 20000 },
@@ -30,11 +60,17 @@ export default function CheckoutContent() {
   ]
 
   const handlePayment = async () => {
+    if (!agreed) {
+      alert('Please agree to the terms and conditions before proceeding.')
+      return
+    }
+
     setLoading(true)
     try {
       // TODO: Implement PayMongo payment integration
       console.log('Processing payment:', { package: selectedPackage, method: selectedPayment })
-      // Redirect to success page or dashboard
+      // For now, redirect to dashboard
+      router.push('/dashboard')
     } catch (error) {
       console.error('Payment error:', error)
     } finally {
@@ -165,9 +201,85 @@ export default function CheckoutContent() {
                 </p>
               </div>
 
+              {/* Policy and Agreement */}
+              <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                <div className="flex items-start space-x-3 mb-4">
+                  <FileText className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-navy-900 mb-2">Terms and Conditions</h3>
+                    <button
+                      onClick={() => setShowPolicy(!showPolicy)}
+                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    >
+                      {showPolicy ? 'Hide' : 'View'} full policy
+                    </button>
+                  </div>
+                </div>
+
+                {showPolicy && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mt-4 text-sm text-gray-600 space-y-3"
+                  >
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <h4 className="font-semibold text-navy-900 mb-2">Client Responsibilities</h4>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li>Provide accurate information for installation</li>
+                        <li>Ensure proper access to installation location</li>
+                        <li>Maintain the security equipment properly</li>
+                        <li>Report any issues within 24 hours</li>
+                        <li>Pay all fees on time as agreed</li>
+                      </ul>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <h4 className="font-semibold text-navy-900 mb-2">Seller Responsibilities</h4>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li>Provide professional installation service</li>
+                        <li>Ensure equipment quality and functionality</li>
+                        <li>Offer 24/7 customer support</li>
+                        <li>Honor warranty terms as specified</li>
+                        <li>Protect client data and privacy</li>
+                      </ul>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <h4 className="font-semibold text-navy-900 mb-2">Payment Terms</h4>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li>Full payment required before installation</li>
+                        <li>All payments are non-refundable after 7 days</li>
+                        <li>Installation fee is included in package price</li>
+                        <li>Additional charges may apply for extra services</li>
+                      </ul>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <h4 className="font-semibold text-navy-900 mb-2">Warranty</h4>
+                      <ul className="space-y-1 list-disc list-inside">
+                        <li>1-year warranty on all equipment</li>
+                        <li>Free replacement for defective units</li>
+                        <li>Labor warranty for 6 months</li>
+                        <li>Warranty void if equipment is tampered with</li>
+                      </ul>
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="mt-4 flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="agreement"
+                    checked={agreed}
+                    onChange={(e) => setAgreed(e.target.checked)}
+                    className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-600 mt-0.5"
+                  />
+                  <label htmlFor="agreement" className="text-sm text-gray-600">
+                    I have read and agree to the terms and conditions, client responsibilities, seller responsibilities, payment terms, and warranty policy.
+                  </label>
+                </div>
+              </div>
+
               <button
                 onClick={handlePayment}
-                disabled={loading}
+                disabled={loading || !agreed}
                 className="w-full bg-red-600 text-white py-4 rounded-lg hover:bg-red-700 transition-colors font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Processing...' : `Pay ₱${selectedPackage.price.toLocaleString()}`}

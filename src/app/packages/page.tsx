@@ -1,11 +1,47 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Check, ArrowRight, AlertTriangle, Camera, Radio } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function PackagesPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [authenticated, setAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) {
+        router.push('/login')
+      } else {
+        setAuthenticated(true)
+      }
+      setLoading(false)
+    }
+
+    checkAuth()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!authenticated) {
+    return null
+  }
+
   const packages = [
     {
       id: 1,
