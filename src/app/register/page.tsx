@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
-import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check } from 'lucide-react'
+import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function RegisterPage() {
@@ -21,6 +21,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -61,7 +63,14 @@ export default function RegisterPage() {
 
       if (error) throw error
 
-      setSuccess(true)
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        // Email confirmation is required
+        setSuccess(true)
+      } else if (data.session) {
+        // User is already confirmed, redirect to dashboard
+        router.push('/dashboard')
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {
@@ -203,13 +212,20 @@ export default function RegisterPage() {
                     <input
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
+                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
                       placeholder="••••••••"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -222,13 +238,20 @@ export default function RegisterPage() {
                     <input
                       id="confirmPassword"
                       name="confirmPassword"
-                      type="password"
+                      type={showConfirmPassword ? 'text' : 'password'}
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
+                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
                       placeholder="••••••••"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
               </div>
