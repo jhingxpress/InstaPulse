@@ -1,18 +1,62 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Shield, Users, FileText, Package, CreditCard, Settings, LogOut, Search, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Shield, Users, FileText, Package, CreditCard, Settings, LogOut, Search, CheckCircle, XCircle, Clock, AlertCircle, MessageSquare } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [searchTerm, setSearchTerm] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [authenticated, setAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      // Check if user is admin (you can add a role field in your database)
+      // For now, we'll use a simple check - in production, check user role in database
+      const userEmail = user.email
+      if (userEmail !== 'admin@instapulse.com') {
+        router.push('/dashboard')
+        return
+      }
+
+      setAuthenticated(true)
+      setLoading(false)
+    }
+
+    checkAuth()
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!authenticated) {
+    return null
+  }
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: Shield },
     { id: 'users', name: 'Users', icon: Users },
     { id: 'kyc', name: 'KYC Approvals', icon: FileText },
+    { id: 'support', name: 'Support Messages', icon: MessageSquare },
     { id: 'orders', name: 'Orders', icon: Package },
     { id: 'payments', name: 'Payments', icon: CreditCard },
     { id: 'settings', name: 'Settings', icon: Settings },
@@ -24,15 +68,20 @@ export default function AdminDashboard() {
       pendingKYC: 12,
       totalOrders: 45,
       totalRevenue: 990000,
+      pendingSupport: 8,
     },
     users: [
       { id: 1, name: 'John Doe', email: 'john@example.com', role: 'client', status: 'active', kycStatus: 'approved' },
       { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'client', status: 'active', kycStatus: 'pending' },
-      { id: 3, name: 'Bob Johnson', email: 'bob@example.com', role: 'client', status: 'active', kycStatus: 'approved' },
+      { id: 3, name: 'Bob Johnson', email: 'bob@example.com', role: 'client', status: 'banned', kycStatus: 'approved' },
     ],
     kycRequests: [
       { id: 1, userId: 2, userName: 'Jane Smith', submittedAt: '2024-01-15', status: 'pending' },
       { id: 2, userId: 4, userName: 'Alice Brown', submittedAt: '2024-01-14', status: 'pending' },
+    ],
+    supportMessages: [
+      { id: 1, userId: 1, userName: 'John Doe', subject: 'Payment issue', message: 'I was charged twice for my subscription', status: 'pending', createdAt: '2024-01-15' },
+      { id: 2, userId: 2, userName: 'Jane Smith', subject: 'KYC verification', message: 'My KYC is still pending after 3 days', status: 'pending', createdAt: '2024-01-14' },
     ],
     orders: [
       { id: 'ORD-001', userId: 1, userName: 'John Doe', package: 'Advanced Response', amount: 22000, status: 'paid', date: '2024-01-15' },
@@ -43,6 +92,16 @@ export default function AdminDashboard() {
   const handleKYCAction = (id: number, action: 'approve' | 'reject') => {
     console.log(`KYC ${action} for request ${id}`)
     // TODO: Implement KYC approval/rejection
+  }
+
+  const handleUserAction = (userId: number, action: 'ban' | 'unban') => {
+    console.log(`User ${action} for user ${userId}`)
+    // TODO: Implement user ban/unban
+  }
+
+  const handleSupportResponse = (messageId: number, response: string) => {
+    console.log(`Response to message ${messageId}: ${response}`)
+    // TODO: Implement support response
   }
 
   return (
@@ -209,9 +268,21 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <button className="text-red-600 hover:text-red-700 text-sm font-medium">
-                              Suspend
-                            </button>
+                            {user.status === 'active' ? (
+                              <button
+                                onClick={() => handleUserAction(user.id, 'ban')}
+                                className="text-red-600 hover:text-red-700 text-sm font-medium"
+                              >
+                                Ban
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleUserAction(user.id, 'unban')}
+                                className="text-green-600 hover:text-green-700 text-sm font-medium"
+                              >
+                                Unban
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -252,6 +323,49 @@ export default function AdminDashboard() {
                         >
                           <XCircle className="h-5 w-5" />
                           <span>Reject</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'support' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-navy-900">Support Messages</h2>
+
+                <div className="space-y-4">
+                  {mockData.supportMessages.map((message) => (
+                    <div key={message.id} className="bg-white rounded-xl shadow-lg p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-navy-900">{message.subject}</h3>
+                          <p className="text-sm text-gray-600">From: {message.userName}</p>
+                          <p className="text-sm text-gray-600">Date: {message.createdAt}</p>
+                        </div>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                          message.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {message.status}
+                        </span>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                        <p className="text-gray-700">{message.message}</p>
+                      </div>
+
+                      <div>
+                        <textarea
+                          placeholder="Type your response..."
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none resize-none"
+                          rows={3}
+                        />
+                        <button
+                          onClick={() => handleSupportResponse(message.id, 'Response sent')}
+                          className="mt-2 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                        >
+                          Send Response
                         </button>
                       </div>
                     </div>

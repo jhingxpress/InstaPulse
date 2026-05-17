@@ -28,6 +28,11 @@ export default function LoginPage() {
 
       if (error) throw error
 
+      // TODO: Send email notification for login
+      // This requires setting up an email service (e.g., Resend, SendGrid)
+      // and creating an Edge Function to send the email
+      console.log('User logged in:', data.user?.email)
+      
       // Redirect to dashboard
       router.push('/dashboard')
     } catch (err: any) {

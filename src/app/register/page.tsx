@@ -20,6 +20,7 @@ export default function RegisterPage() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -54,13 +55,13 @@ export default function RegisterPage() {
             phone: formData.phone,
             address: formData.address,
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
       if (error) throw error
 
-      // Redirect to KYC verification
-      router.push('/kyc')
+      setSuccess(true)
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {
@@ -96,6 +97,20 @@ export default function RegisterPage() {
               >
                 <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-800">{error}</p>
+              </motion.div>
+            )}
+
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3"
+              >
+                <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-green-800">
+                  <p className="font-semibold mb-1">Registration successful!</p>
+                  <p>Please check your email to confirm your account. You'll need to click the confirmation link before you can log in.</p>
+                </div>
               </motion.div>
             )}
 
