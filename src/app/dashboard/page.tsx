@@ -42,7 +42,35 @@ export default function ClientDashboard() {
     const fetchUser = async () => {
       try {
         const { data: { user } } = await supabase().auth.getUser()
-        setUser(user)
+        if (user) {
+          setUser(user)
+          
+          // Load user profile from localStorage
+          const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}')
+          if (userProfile.package_id) {
+            mockData.package = {
+              id: userProfile.package_id,
+              name: userProfile.package_name,
+              price: userProfile.package_price,
+            }
+            mockData.payment = {
+              status: userProfile.payment_status || 'paid',
+              amount: userProfile.package_price,
+              date: new Date(userProfile.updated_at).toLocaleDateString(),
+            }
+          }
+          
+          // Load orders from localStorage
+          const orders = JSON.parse(localStorage.getItem('orders') || '[]')
+          const userOrders = orders.filter((order: any) => order.user_id === user.id)
+          mockData.orders = userOrders.map((order: any) => ({
+            id: order.id,
+            package: order.package_name,
+            amount: order.amount,
+            status: order.status,
+            date: new Date(order.created_at).toLocaleDateString(),
+          }))
+        }
       } catch (error) {
         console.error('Error fetching user:', error)
       } finally {

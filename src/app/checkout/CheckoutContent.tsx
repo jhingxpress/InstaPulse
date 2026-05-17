@@ -65,17 +65,8 @@ export default function CheckoutContent() {
       return
     }
 
-    setLoading(true)
-    try {
-      // TODO: Implement PayMongo payment integration
-      console.log('Processing payment:', { package: selectedPackage, method: selectedPayment })
-      // For now, redirect to dashboard
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('Payment error:', error)
-    } finally {
-      setLoading(false)
-    }
+    // Redirect to payment page with package and payment method
+    router.push(`/payment?package=${packageId}&method=${selectedPayment}`)
   }
 
   return (
