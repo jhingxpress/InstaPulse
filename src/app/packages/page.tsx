@@ -50,6 +50,7 @@ export default function PackagesPage() {
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
         { icon: Camera, name: 'CCTV Camera', quantity: 1 },
+        { icon: Radio, name: 'Alert Buttons', quantity: 1 },
       ],
       featured: false,
     },
@@ -60,6 +61,7 @@ export default function PackagesPage() {
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
         { icon: Camera, name: 'CCTV Camera', quantity: 2 },
+        { icon: Radio, name: 'Alert Buttons', quantity: 1 },
       ],
       featured: false,
     },
@@ -210,8 +212,8 @@ export default function PackagesPage() {
                 </tr>
                 <tr className="border-b border-gray-100">
                   <td className="py-4 px-4 text-gray-600">Alert Buttons</td>
-                  <td className="text-center py-4 px-4">-</td>
-                  <td className="text-center py-4 px-4">-</td>
+                  <td className="text-center py-4 px-4">1</td>
+                  <td className="text-center py-4 px-4">1</td>
                   <td className="text-center py-4 px-4">2</td>
                   <td className="text-center py-4 px-4">3</td>
                 </tr>

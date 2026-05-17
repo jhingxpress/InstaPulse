@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   description: 'Advanced emergency alert and monitoring system for communities and establishments. Professional security solutions for homes and businesses.',
   keywords: ['emergency alert', 'security system', 'rapid response', 'monitoring', 'CCTV', 'alarm system'],
   authors: [{ name: 'InstaPulse' }],
+  icons: {
+    icon: '/favicon.svg',
+  },
   openGraph: {
     title: 'InstaPulse - Emergency Alert & Rapid Response System',
     description: 'Advanced emergency alert and monitoring system for communities and establishments.',

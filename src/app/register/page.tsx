@@ -63,6 +63,23 @@ export default function RegisterPage() {
 
       if (error) throw error
 
+      // Insert user data into users table
+      if (data.user) {
+        const { error: profileError } = await supabase()
+          .from('users')
+          .insert([
+            {
+              id: data.user.id,
+              email: formData.email,
+              full_name: formData.fullname,
+              phone: formData.phone,
+              address: formData.address,
+            },
+          ] as any)
+
+        if (profileError) throw profileError
+      }
+
       // Check if email confirmation is required
       if (data.user && !data.session) {
         // Email confirmation is required
@@ -72,12 +89,7 @@ export default function RegisterPage() {
         router.push('/dashboard')
       }
     } catch (err: any) {
-      // Check if error is related to email confirmation
-      if (err.message?.includes('email') || err.message?.includes('Email')) {
-        setError('Email confirmation service is not configured. Please contact support or try again later.')
-      } else {
-        setError(err.message || 'Registration failed')
-      }
+      setError(err.message || 'Registration failed')
     } finally {
       setLoading(false)
     }
