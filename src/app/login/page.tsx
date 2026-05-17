@@ -3,10 +3,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Lock, AlertCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,17 +21,15 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // TODO: Implement Supabase authentication
-      console.log('Login attempt:', { email, password })
-      // const { data, error } = await supabase.auth.signInWithPassword({
-      //   email,
-      //   password,
-      // })
-      
-      // if (error) throw error
-      
-      // Redirect based on user role
-      // router.push('/dashboard')
+      const { data, error } = await supabase().auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) throw error
+
+      // Redirect to dashboard
+      router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {

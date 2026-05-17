@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function ClientDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: Shield },
@@ -37,6 +42,26 @@ export default function ClientDashboard() {
     ],
   }
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data: { user } } = await supabase().auth.getUser()
+        setUser(user)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUser()
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase().auth.signOut()
+    router.push('/login')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -52,11 +77,13 @@ export default function ClientDashboard() {
                 <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
                   <User className="h-5 w-5" />
                 </div>
-                <span className="hidden sm:inline">John Doe</span>
+                <span className="hidden sm:inline">
+                  {loading ? 'Loading...' : user?.user_metadata?.fullname || user?.email || 'User'}
+                </span>
               </div>
-              <Link href="/login" className="text-gray-300 hover:text-white">
+              <button onClick={handleLogout} className="text-gray-300 hover:text-white">
                 <LogOut className="h-5 w-5" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -221,7 +248,7 @@ export default function ClientDashboard() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                       <input
                         type="text"
-                        defaultValue="John Doe"
+                        defaultValue={user?.user_metadata?.fullname || ''}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
                       />
                     </div>
@@ -229,7 +256,7 @@ export default function ClientDashboard() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                       <input
                         type="email"
-                        defaultValue="john@example.com"
+                        defaultValue={user?.email || ''}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
                       />
                     </div>
@@ -237,7 +264,7 @@ export default function ClientDashboard() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                       <input
                         type="tel"
-                        defaultValue="+63 912 345 6789"
+                        defaultValue={user?.user_metadata?.phone || ''}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
                       />
                     </div>
@@ -245,7 +272,7 @@ export default function ClientDashboard() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
                       <input
                         type="text"
-                        defaultValue="123 Street, City, Philippines"
+                        defaultValue={user?.user_metadata?.address || ''}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
                       />
                     </div>
