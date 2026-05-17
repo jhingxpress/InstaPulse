@@ -20,26 +20,22 @@ export default function ClientDashboard() {
     { id: 'settings', name: 'Settings', icon: Settings },
   ]
 
-  const mockData = {
-    package: {
-      name: 'Advanced Response',
-      price: 22000,
-      status: 'Active',
-      items: ['1x Alert System', '2x CCTV Camera', '2x Alert Buttons'],
-    },
-    payment: {
-      status: 'Paid',
-      amount: 22000,
-      method: 'GCash',
-      date: '2024-01-15',
-    },
+  const mockData: {
+    package: any | null
+    payment: any | null
+    kyc: {
+      status: string
+      submittedAt: string | null
+    }
+    orders: any[]
+  } = {
+    package: null, // No package by default
+    payment: null,
     kyc: {
       status: 'Pending',
-      submittedAt: '2024-01-15',
+      submittedAt: null,
     },
-    orders: [
-      { id: 'ORD-001', package: 'Advanced Response', amount: 22000, status: 'Paid', date: '2024-01-15' },
-    ],
+    orders: [],
   }
 
   useEffect(() => {
@@ -125,95 +121,129 @@ export default function ClientDashboard() {
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-navy-900">Dashboard Overview</h2>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Package className="h-8 w-8 text-red-600" />
-                      <span className="text-gray-600">Active Package</span>
-                    </div>
-                    <p className="text-2xl font-bold text-navy-900">{mockData.package.name}</p>
-                    <p className="text-sm text-gray-500 mt-1">{mockData.package.status}</p>
+                {!mockData.package ? (
+                  <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                    <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-navy-900 mb-2">No Active Package</h3>
+                    <p className="text-gray-600 mb-6">Choose a security package to get started with InstaPulse</p>
+                    <Link
+                      href="/packages"
+                      className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                    >
+                      Choose a Package
+                    </Link>
                   </div>
+                ) : (
+                  <>
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <Package className="h-8 w-8 text-red-600" />
+                          <span className="text-gray-600">Active Package</span>
+                        </div>
+                        <p className="text-2xl font-bold text-navy-900">{mockData.package.name}</p>
+                        <p className="text-sm text-gray-500 mt-1">{mockData.package.status}</p>
+                      </div>
 
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <CreditCard className="h-8 w-8 text-green-600" />
-                      <span className="text-gray-600">Payment Status</span>
-                    </div>
-                    <p className="text-2xl font-bold text-navy-900">{mockData.payment.status}</p>
-                    <p className="text-sm text-gray-500 mt-1">₱{mockData.payment.amount.toLocaleString()}</p>
-                  </div>
+                      <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <CreditCard className="h-8 w-8 text-green-600" />
+                          <span className="text-gray-600">Payment Status</span>
+                        </div>
+                        <p className="text-2xl font-bold text-navy-900">{mockData.payment?.status || 'Pending'}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {mockData.payment ? `₱${mockData.payment.amount.toLocaleString()}` : 'Not paid'}
+                        </p>
+                      </div>
 
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <FileText className="h-8 w-8 text-yellow-600" />
-                      <span className="text-gray-600">KYC Status</span>
+                      <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <FileText className="h-8 w-8 text-yellow-600" />
+                          <span className="text-gray-600">KYC Status</span>
+                        </div>
+                        <p className="text-2xl font-bold text-navy-900">{mockData.kyc.status}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {mockData.kyc.submittedAt ? `Submitted ${mockData.kyc.submittedAt}` : 'Not submitted'}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-navy-900">{mockData.kyc.status}</p>
-                    <p className="text-sm text-gray-500 mt-1">Submitted {mockData.kyc.submittedAt}</p>
-                  </div>
-                </div>
 
-                {/* Package Details */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-navy-900 mb-4">Package Details</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Package Name</span>
-                      <span className="font-semibold">{mockData.package.name}</span>
+                    {/* Package Details */}
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                      <h3 className="text-xl font-bold text-navy-900 mb-4">Package Details</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Package Name</span>
+                          <span className="font-semibold">{mockData.package.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Price</span>
+                          <span className="font-semibold">₱{mockData.package.price.toLocaleString()}</span>
+                        </div>
+                        <div className="border-t pt-3">
+                          <p className="text-gray-600 mb-2">Included Items:</p>
+                          <ul className="space-y-1">
+                            {mockData.package.items.map((item: string, index: number) => (
+                              <li key={index} className="flex items-center space-x-2">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="text-sm">{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Price</span>
-                      <span className="font-semibold">₱{mockData.package.price.toLocaleString()}</span>
-                    </div>
-                    <div className="border-t pt-3">
-                      <p className="text-gray-600 mb-2">Included Items:</p>
-                      <ul className="space-y-1">
-                        {mockData.package.items.map((item, index) => (
-                          <li key={index} className="flex items-center space-x-2">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span className="text-sm">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             )}
 
             {activeTab === 'orders' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-navy-900">Order History</h2>
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Order ID</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Package</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Amount</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {mockData.orders.map((order) => (
-                        <tr key={order.id}>
-                          <td className="px-6 py-4 text-sm text-gray-900">{order.id}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{order.package}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">₱{order.amount.toLocaleString()}</td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{order.date}</td>
+                {mockData.orders.length === 0 ? (
+                  <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                    <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-navy-900 mb-2">No Orders Yet</h3>
+                    <p className="text-gray-600 mb-6">You haven't placed any orders yet</p>
+                    <Link
+                      href="/packages"
+                      className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                    >
+                      Browse Packages
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Order ID</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Package</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Amount</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {mockData.orders.map((order: any) => (
+                          <tr key={order.id}>
+                            <td className="px-6 py-4 text-sm text-gray-900">{order.id}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{order.package}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">₱{order.amount.toLocaleString()}</td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{order.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 
