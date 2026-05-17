@@ -55,9 +55,9 @@ export default function Home() {
             >
               <AlertTriangle className="h-12 w-12 text-white" />
             </motion.div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-navy-900 mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-navy-900 mb-6 leading-tight">
               Instant Emergency Alerts for{' '}
-              <span className="text-red-600">Faster Police Response</span>
+              <span className="text-red-600 block sm:inline">Faster Police Response</span>
             </h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-10">
               InstaPulse is a smart emergency alert and monitoring system designed to help
@@ -95,7 +95,7 @@ export default function Home() {
             <h2 className="text-3xl sm:text-4xl font-bold text-navy-900 mb-8 text-center">
               Advanced Emergency Alert & Monitoring Solution
             </h2>
-            <div className="prose prose-lg text-gray-600">
+            <div className="prose prose-lg text-gray-600 text-justify">
               <p className="mb-4">
                 InstaPulse is an advanced emergency alert and monitoring solution that helps
                 improve public safety through real-time communication and rapid response technology.
