@@ -53,7 +53,7 @@ export default function RegisterPage() {
         password: formData.password,
         options: {
           data: {
-            fullname: formData.fullname,
+            full_name: formData.fullname,
             phone: formData.phone,
             address: formData.address,
           },
@@ -63,22 +63,8 @@ export default function RegisterPage() {
 
       if (error) throw error
 
-      // Insert user data into users table
-      if (data.user) {
-        const { error: profileError } = await supabase()
-          .from('users')
-          .insert([
-            {
-              id: data.user.id,
-              email: formData.email,
-              full_name: formData.fullname,
-              phone: formData.phone,
-              address: formData.address,
-            },
-          ] as any)
-
-        if (profileError) throw profileError
-      }
+      // Profile is automatically created by PostgreSQL trigger
+      // No manual insertion needed
 
       // Check if email confirmation is required
       if (data.user && !data.session) {
