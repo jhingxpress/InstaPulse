@@ -37,24 +37,47 @@ END $$;
 -- 2. AUDIT LOGS TABLE
 -- ============================================
 
--- Create audit_logs table
-CREATE TABLE public.audit_logs (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  action TEXT NOT NULL,
-  target_table TEXT NOT NULL,
-  target_id TEXT,
-  old_data JSONB,
-  new_data JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Create audit_logs table (optional - requires higher permissions)
+-- If this fails, the RBAC system will still work without audit logging
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'audit_logs'
+    ) THEN
+        EXECUTE 'CREATE TABLE public.audit_logs (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+          action TEXT NOT NULL,
+          target_table TEXT NOT NULL,
+          target_id TEXT,
+          old_data JSONB,
+          new_data JSONB,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )';
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Could not create audit_logs table. RBAC will work without audit logging.';
+END $$;
 
 -- ============================================
 -- 3. ENABLE ROW LEVEL SECURITY
 -- ============================================
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- Only enable RLS on audit_logs if table exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'audit_logs'
+    ) THEN
+        EXECUTE 'ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY';
+    END IF;
+END $$;
 
 -- ============================================
 -- 4. RLS POLICIES FOR PROFILES
@@ -123,22 +146,30 @@ CREATE POLICY "Admin can update profiles (no role changes)"
 -- 5. RLS POLICIES FOR AUDIT LOGS
 -- ============================================
 
--- Only superadmin can SELECT audit logs
-CREATE POLICY "Superadmin can view audit logs"
-  ON public.audit_logs
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE id = auth.uid() AND role = 'superadmin'
-    )
-  );
-
--- Only system (via trigger or service role) can INSERT audit logs
-CREATE POLICY "System can insert audit logs"
-  ON public.audit_logs
-  FOR INSERT
-  WITH CHECK (true);
+-- Only create audit_logs policies if table exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'audit_logs'
+    ) THEN
+        EXECUTE 'CREATE POLICY IF NOT EXISTS "Superadmin can view audit logs"
+          ON public.audit_logs
+          FOR SELECT
+          USING (
+            EXISTS (
+              SELECT 1 FROM public.profiles
+              WHERE id = auth.uid() AND role = ''superadmin''
+            )
+          )';
+        
+        EXECUTE 'CREATE POLICY IF NOT EXISTS "System can insert audit logs"
+          ON public.audit_logs
+          FOR INSERT
+          WITH CHECK (true)';
+    END IF;
+END $$;
 
 -- ============================================
 -- 6. AUTOMATIC PROFILE CREATION TRIGGER
@@ -172,52 +203,60 @@ CREATE TRIGGER on_auth_user_created
 -- 7. AUDIT LOG TRIGGER FUNCTION
 -- ============================================
 
--- Function to log changes to profiles
-CREATE OR REPLACE FUNCTION public.log_profile_changes()
-RETURNS TRIGGER AS $$
+-- Function to log changes to profiles (only if audit_logs table exists)
+DO $$
 BEGIN
-  IF (TG_OP = 'INSERT') THEN
-    INSERT INTO public.audit_logs (user_id, action, target_table, target_id, new_data)
-    VALUES (
-      auth.uid(),
-      'INSERT',
-      'profiles',
-      NEW.id::TEXT,
-      to_jsonb(NEW)
-    );
-    RETURN NEW;
-  ELSIF (TG_OP = 'UPDATE') THEN
-    INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
-    VALUES (
-      auth.uid(),
-      'UPDATE',
-      'profiles',
-      NEW.id::TEXT,
-      to_jsonb(OLD),
-      to_jsonb(NEW)
-    );
-    RETURN NEW;
-  ELSIF (TG_OP = 'DELETE') THEN
-    INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data)
-    VALUES (
-      auth.uid(),
-      'DELETE',
-      'profiles',
-      OLD.id::TEXT,
-      to_jsonb(OLD)
-    );
-    RETURN OLD;
-  END IF;
-  RETURN NULL;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Attach trigger to profiles table
-DROP TRIGGER IF EXISTS log_profile_changes_trigger ON public.profiles;
-CREATE TRIGGER log_profile_changes_trigger
-  AFTER INSERT OR UPDATE OR DELETE ON public.profiles
-  FOR EACH ROW
-  EXECUTE FUNCTION public.log_profile_changes();
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'audit_logs'
+    ) THEN
+        EXECUTE 'CREATE OR REPLACE FUNCTION public.log_profile_changes()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          IF (TG_OP = ''INSERT'') THEN
+            INSERT INTO public.audit_logs (user_id, action, target_table, target_id, new_data)
+            VALUES (
+              auth.uid(),
+              ''INSERT'',
+              ''profiles'',
+              NEW.id::TEXT,
+              to_jsonb(NEW)
+            );
+            RETURN NEW;
+          ELSIF (TG_OP = ''UPDATE'') THEN
+            INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
+            VALUES (
+              auth.uid(),
+              ''UPDATE'',
+              ''profiles'',
+              NEW.id::TEXT,
+              to_jsonb(OLD),
+              to_jsonb(NEW)
+            );
+            RETURN NEW;
+          ELSIF (TG_OP = ''DELETE'') THEN
+            INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data)
+            VALUES (
+              auth.uid(),
+              ''DELETE'',
+              ''profiles'',
+              OLD.id::TEXT,
+              to_jsonb(OLD)
+            );
+            RETURN OLD;
+          END IF;
+          RETURN NULL;
+        END;
+        $$ LANGUAGE plpgsql SECURITY DEFINER';
+        
+        EXECUTE 'DROP TRIGGER IF EXISTS log_profile_changes_trigger ON public.profiles';
+        EXECUTE 'CREATE TRIGGER log_profile_changes_trigger
+          AFTER INSERT OR UPDATE OR DELETE ON public.profiles
+          FOR EACH ROW
+          EXECUTE FUNCTION public.log_profile_changes()';
+    END IF;
+END $$;
 
 -- ============================================
 -- 8. UPDATED_AT TIMESTAMP TRIGGER
@@ -245,9 +284,20 @@ CREATE TRIGGER update_profiles_updated_at
 
 CREATE INDEX IF NOT EXISTS profiles_email_idx ON public.profiles(email);
 CREATE INDEX IF NOT EXISTS profiles_role_idx ON public.profiles(role);
-CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON public.audit_logs(user_id);
-CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON public.audit_logs(action);
-CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON public.audit_logs(created_at DESC);
+
+-- Only create audit_logs indexes if table exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'audit_logs'
+    ) THEN
+        EXECUTE 'CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON public.audit_logs(user_id)';
+        EXECUTE 'CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON public.audit_logs(action)';
+        EXECUTE 'CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON public.audit_logs(created_at DESC)';
+    END IF;
+END $$;
 
 -- ============================================
 -- 10. SUPERADMIN SETUP
