@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Shield, Users, FileText, Package, CreditCard, Settings, LogOut, Search, CheckCircle, XCircle, Clock, AlertCircle, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { isAdmin, getAllProfiles, updateUserRole, type Profile, type UserRole } from '@/lib/profile'
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -13,25 +14,23 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase().auth.getUser()
-      if (!user) {
-        router.push('/login')
-        return
-      }
-
-      // Check if user is admin (you can add a role field in your database)
-      // For now, we'll use a simple check - in production, check user role in database
-      const userEmail = user.email
-      if (userEmail !== 'admin@instapulse.com') {
+      const isAdminUser = await isAdmin()
+      if (!isAdminUser) {
         router.push('/dashboard')
         return
       }
 
       setAuthenticated(true)
       setLoading(false)
+
+      // Fetch all profiles
+      const allProfiles = await getAllProfiles()
+      setProfiles(allProfiles)
     }
 
     checkAuth()
@@ -62,32 +61,28 @@ export default function AdminDashboard() {
     { id: 'settings', name: 'Settings', icon: Settings },
   ]
 
-  const mockData = {
-    stats: {
-      totalUsers: 150,
-      pendingKYC: 12,
-      totalOrders: 45,
-      totalRevenue: 990000,
-      pendingSupport: 8,
-    },
-    users: [
-      { id: 1, name: 'John Doe', email: 'john@example.com', role: 'client', status: 'active', kycStatus: 'approved' },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'client', status: 'active', kycStatus: 'pending' },
-      { id: 3, name: 'Bob Johnson', email: 'bob@example.com', role: 'client', status: 'banned', kycStatus: 'approved' },
-    ],
-    kycRequests: [
-      { id: 1, userId: 2, userName: 'Jane Smith', submittedAt: '2024-01-15', status: 'pending' },
-      { id: 2, userId: 4, userName: 'Alice Brown', submittedAt: '2024-01-14', status: 'pending' },
-    ],
-    supportMessages: [
-      { id: 1, userId: 1, userName: 'John Doe', subject: 'Payment issue', message: 'I was charged twice for my subscription', status: 'pending', createdAt: '2024-01-15' },
-      { id: 2, userId: 2, userName: 'Jane Smith', subject: 'KYC verification', message: 'My KYC is still pending after 3 days', status: 'pending', createdAt: '2024-01-14' },
-    ],
-    orders: [
-      { id: 'ORD-001', userId: 1, userName: 'John Doe', package: 'Advanced Response', amount: 22000, status: 'paid', date: '2024-01-15' },
-      { id: 'ORD-002', userId: 2, userName: 'Jane Smith', package: 'Basic Protection', amount: 20000, status: 'pending', date: '2024-01-14' },
-    ],
+  const stats = {
+    totalUsers: profiles.length,
+    totalAdmins: profiles.filter(p => p.role === 'admin').length,
+    totalSuperadmins: profiles.filter(p => p.role === 'superadmin').length,
+    totalRegularUsers: profiles.filter(p => p.role === 'user').length,
   }
+
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    const success = await updateUserRole(userId, newRole)
+    if (success) {
+      // Refresh profiles
+      const allProfiles = await getAllProfiles()
+      setProfiles(allProfiles)
+    } else {
+      alert('Failed to update role')
+    }
+  }
+
+  const filteredUsers = profiles.filter(profile =>
+    profile.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    profile.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   const handleKYCAction = (id: number, action: 'approve' | 'reject') => {
     console.log(`KYC ${action} for request ${id}`)
@@ -172,47 +167,52 @@ export default function AdminDashboard() {
                       <Users className="h-8 w-8 text-blue-600" />
                       <span className="text-gray-600">Total Users</span>
                     </div>
-                    <p className="text-3xl font-bold text-navy-900">{mockData.stats.totalUsers}</p>
+                    <p className="text-3xl font-bold text-navy-900">{stats.totalUsers}</p>
                   </div>
 
                   <div className="bg-white rounded-xl shadow-lg p-6">
                     <div className="flex items-center space-x-3 mb-4">
-                      <FileText className="h-8 w-8 text-yellow-600" />
-                      <span className="text-gray-600">Pending KYC</span>
+                      <Shield className="h-8 w-8 text-yellow-600" />
+                      <span className="text-gray-600">Admins</span>
                     </div>
-                    <p className="text-3xl font-bold text-navy-900">{mockData.stats.pendingKYC}</p>
+                    <p className="text-3xl font-bold text-navy-900">{stats.totalAdmins}</p>
                   </div>
 
                   <div className="bg-white rounded-xl shadow-lg p-6">
                     <div className="flex items-center space-x-3 mb-4">
-                      <Package className="h-8 w-8 text-green-600" />
-                      <span className="text-gray-600">Total Orders</span>
+                      <Shield className="h-8 w-8 text-red-600" />
+                      <span className="text-gray-600">Superadmins</span>
                     </div>
-                    <p className="text-3xl font-bold text-navy-900">{mockData.stats.totalOrders}</p>
+                    <p className="text-3xl font-bold text-navy-900">{stats.totalSuperadmins}</p>
                   </div>
 
                   <div className="bg-white rounded-xl shadow-lg p-6">
                     <div className="flex items-center space-x-3 mb-4">
-                      <CreditCard className="h-8 w-8 text-purple-600" />
-                      <span className="text-gray-600">Revenue</span>
+                      <Users className="h-8 w-8 text-green-600" />
+                      <span className="text-gray-600">Regular Users</span>
                     </div>
-                    <p className="text-3xl font-bold text-navy-900">₱{(mockData.stats.totalRevenue / 1000).toFixed(0)}K</p>
+                    <p className="text-3xl font-bold text-navy-900">{stats.totalRegularUsers}</p>
                   </div>
                 </div>
 
                 {/* Recent Activity */}
                 <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-navy-900 mb-4">Recent Activity</h3>
+                  <h3 className="text-xl font-bold text-navy-900 mb-4">Recent Users</h3>
                   <div className="space-y-4">
-                    {mockData.orders.slice(0, 3).map((order) => (
-                      <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    {profiles.slice(0, 5).map((profile) => (
+                      <div key={profile.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <div>
-                          <p className="font-semibold text-navy-900">{order.userName}</p>
-                          <p className="text-sm text-gray-600">Ordered {order.package}</p>
+                          <p className="font-semibold text-navy-900">{profile.full_name || 'Unknown'}</p>
+                          <p className="text-sm text-gray-600">{profile.email}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">₱{order.amount.toLocaleString()}</p>
-                          <p className="text-sm text-gray-600">{order.date}</p>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            profile.role === 'superadmin' ? 'bg-red-100 text-red-800' :
+                            profile.role === 'admin' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {profile.role}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -244,45 +244,33 @@ export default function AdminDashboard() {
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">KYC Status</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {mockData.users.map((user) => (
-                        <tr key={user.id}>
-                          <td className="px-6 py-4 text-sm text-gray-900">{user.name}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900 capitalize">{user.role}</td>
+                      {filteredUsers.map((profile) => (
+                        <tr key={profile.id}>
+                          <td className="px-6 py-4 text-sm text-gray-900">{profile.full_name || 'Unknown'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{profile.email || 'Unknown'}</td>
                           <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                              {user.status}
-                            </span>
+                            <select
+                              value={profile.role}
+                              onChange={(e) => handleRoleChange(profile.id, e.target.value as UserRole)}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none text-sm"
+                              disabled={profile.role === 'superadmin'} // Admin cannot change superadmin roles
+                            >
+                              <option value="user">User</option>
+                              <option value="admin">Admin</option>
+                              <option value="superadmin" disabled>Superadmin</option>
+                            </select>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                              user.kycStatus === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {user.kycStatus}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            {user.status === 'active' ? (
-                              <button
-                                onClick={() => handleUserAction(user.id, 'ban')}
-                                className="text-red-600 hover:text-red-700 text-sm font-medium"
-                              >
-                                Ban
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleUserAction(user.id, 'unban')}
-                                className="text-green-600 hover:text-green-700 text-sm font-medium"
-                              >
-                                Unban
-                              </button>
-                            )}
+                            <button
+                              onClick={() => router.push(`/admin/users/${profile.id}`)}
+                              className="text-red-600 hover:text-red-700 text-sm font-medium"
+                            >
+                              View Details
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -295,38 +283,8 @@ export default function AdminDashboard() {
             {activeTab === 'kyc' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-navy-900">KYC Approvals</h2>
-
-                <div className="space-y-4">
-                  {mockData.kycRequests.map((request) => (
-                    <div key={request.id} className="bg-white rounded-xl shadow-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-bold text-navy-900">{request.userName}</h3>
-                          <p className="text-sm text-gray-600">Submitted: {request.submittedAt}</p>
-                        </div>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                          {request.status}
-                        </span>
-                      </div>
-
-                      <div className="flex space-x-4">
-                        <button
-                          onClick={() => handleKYCAction(request.id, 'approve')}
-                          className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center space-x-2"
-                        >
-                          <CheckCircle className="h-5 w-5" />
-                          <span>Approve</span>
-                        </button>
-                        <button
-                          onClick={() => handleKYCAction(request.id, 'reject')}
-                          className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center justify-center space-x-2"
-                        >
-                          <XCircle className="h-5 w-5" />
-                          <span>Reject</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <p className="text-gray-600">KYC approval system coming soon...</p>
                 </div>
               </div>
             )}
@@ -334,42 +292,8 @@ export default function AdminDashboard() {
             {activeTab === 'support' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-navy-900">Support Messages</h2>
-
-                <div className="space-y-4">
-                  {mockData.supportMessages.map((message) => (
-                    <div key={message.id} className="bg-white rounded-xl shadow-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-bold text-navy-900">{message.subject}</h3>
-                          <p className="text-sm text-gray-600">From: {message.userName}</p>
-                          <p className="text-sm text-gray-600">Date: {message.createdAt}</p>
-                        </div>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                          message.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-                        }`}>
-                          {message.status}
-                        </span>
-                      </div>
-
-                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                        <p className="text-gray-700">{message.message}</p>
-                      </div>
-
-                      <div>
-                        <textarea
-                          placeholder="Type your response..."
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none resize-none"
-                          rows={3}
-                        />
-                        <button
-                          onClick={() => handleSupportResponse(message.id, 'Response sent')}
-                          className="mt-2 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors font-semibold"
-                        >
-                          Send Response
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <p className="text-gray-600">Support message system coming soon...</p>
                 </div>
               </div>
             )}
@@ -377,38 +301,8 @@ export default function AdminDashboard() {
             {activeTab === 'orders' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-navy-900">Order Management</h2>
-
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Order ID</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Customer</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Package</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Amount</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {mockData.orders.map((order) => (
-                        <tr key={order.id}>
-                          <td className="px-6 py-4 text-sm text-gray-900">{order.id}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{order.userName}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{order.package}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">₱{order.amount.toLocaleString()}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                              order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{order.date}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <p className="text-gray-600">Order management system coming soon...</p>
                 </div>
               </div>
             )}
