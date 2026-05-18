@@ -8,20 +8,30 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. PROFILES TABLE (with role support)
 -- ============================================
 
--- Drop existing profiles table if it exists (for clean setup)
-DROP TABLE IF EXISTS public.profiles CASCADE;
+-- Add role column to existing profiles table if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'profiles' 
+        AND column_name = 'role'
+    ) THEN
+        ALTER TABLE public.profiles ADD COLUMN role TEXT DEFAULT 'user';
+        ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('user', 'admin', 'superadmin'));
+    END IF;
+END $$;
 
--- Create profiles table with role support
-CREATE TABLE public.profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  full_name TEXT,
-  phone TEXT,
-  address TEXT,
-  email TEXT,
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Add updated_at column if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'profiles' 
+        AND column_name = 'updated_at'
+    ) THEN
+        ALTER TABLE public.profiles ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+END $$;
 
 -- ============================================
 -- 2. AUDIT LOGS TABLE
