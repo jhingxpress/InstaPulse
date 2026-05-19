@@ -146,6 +146,10 @@ CREATE POLICY "Admin can update users (no role changes)"
 -- 5. RLS POLICIES FOR AUDIT LOGS
 -- ============================================
 
+-- Drop existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Superadmin can view audit logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "System can insert audit logs" ON public.audit_logs;
+
 -- Only create audit_logs policies if table exists
 DO $$
 BEGIN
@@ -154,20 +158,20 @@ BEGIN
         WHERE table_schema = 'public' 
         AND table_name = 'audit_logs'
     ) THEN
-        EXECUTE 'CREATE POLICY IF NOT EXISTS "Superadmin can view audit logs"
+        CREATE POLICY "Superadmin can view audit logs"
           ON public.audit_logs
           FOR SELECT
           USING (
             EXISTS (
               SELECT 1 FROM public.users
-              WHERE id = auth.uid() AND role = ''superadmin''
+              WHERE id = auth.uid() AND role = 'superadmin'
             )
-          )';
+          );
         
-        EXECUTE 'CREATE POLICY IF NOT EXISTS "System can insert audit logs"
+        CREATE POLICY "System can insert audit logs"
           ON public.audit_logs
           FOR INSERT
-          WITH CHECK (true)';
+          WITH CHECK (true);
     END IF;
 END $$;
 
@@ -203,7 +207,47 @@ CREATE TRIGGER on_auth_user_created
 -- 7. AUDIT LOG TRIGGER FUNCTION
 -- ============================================
 
--- Function to log changes to users (only if audit_logs table exists)
+-- Function to log changes to users (created unconditionally, will only work if audit_logs table exists)
+CREATE OR REPLACE FUNCTION public.log_user_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (TG_OP = 'INSERT') THEN
+    INSERT INTO public.audit_logs (user_id, action, target_table, target_id, new_data)
+    VALUES (
+      auth.uid(),
+      'INSERT',
+      'users',
+      NEW.id::TEXT,
+      to_jsonb(NEW)
+    );
+    RETURN NEW;
+  ELSIF (TG_OP = 'UPDATE') THEN
+    INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
+    VALUES (
+      auth.uid(),
+      'UPDATE',
+      'users',
+      NEW.id::TEXT,
+      to_jsonb(OLD),
+      to_jsonb(NEW)
+    );
+    RETURN NEW;
+  ELSIF (TG_OP = 'DELETE') THEN
+    INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data)
+    VALUES (
+      auth.uid(),
+      'DELETE',
+      'users',
+      OLD.id::TEXT,
+      to_jsonb(OLD)
+    );
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger only if audit_logs table exists
 DO $$
 BEGIN
     IF EXISTS (
@@ -211,45 +255,6 @@ BEGIN
         WHERE table_schema = 'public' 
         AND table_name = 'audit_logs'
     ) THEN
-        CREATE OR REPLACE FUNCTION public.log_user_changes()
-        RETURNS TRIGGER AS $$
-        BEGIN
-          IF (TG_OP = 'INSERT') THEN
-            INSERT INTO public.audit_logs (user_id, action, target_table, target_id, new_data)
-            VALUES (
-              auth.uid(),
-              'INSERT',
-              'users',
-              NEW.id::TEXT,
-              to_jsonb(NEW)
-            );
-            RETURN NEW;
-          ELSIF (TG_OP = 'UPDATE') THEN
-            INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
-            VALUES (
-              auth.uid(),
-              'UPDATE',
-              'users',
-              NEW.id::TEXT,
-              to_jsonb(OLD),
-              to_jsonb(NEW)
-            );
-            RETURN NEW;
-          ELSIF (TG_OP = 'DELETE') THEN
-            INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data)
-            VALUES (
-              auth.uid(),
-              'DELETE',
-              'users',
-              OLD.id::TEXT,
-              to_jsonb(OLD)
-            );
-            RETURN OLD;
-          END IF;
-          RETURN NULL;
-        END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER;
-        
         DROP TRIGGER IF EXISTS log_user_changes_trigger ON public.users;
         CREATE TRIGGER log_user_changes_trigger
           AFTER INSERT OR UPDATE OR DELETE ON public.users
@@ -293,9 +298,9 @@ BEGIN
         WHERE table_schema = 'public' 
         AND table_name = 'audit_logs'
     ) THEN
-        EXECUTE 'CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON public.audit_logs(user_id)';
-        EXECUTE 'CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON public.audit_logs(action)';
-        EXECUTE 'CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON public.audit_logs(created_at DESC)';
+        CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON public.audit_logs(user_id);
+        CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON public.audit_logs(action);
+        CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON public.audit_logs(created_at DESC);
     END IF;
 END $$;
 
