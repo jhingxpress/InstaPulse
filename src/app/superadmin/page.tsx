@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye } from 'lucide-react'
@@ -26,6 +26,7 @@ export default function SuperAdminDashboard() {
   const [unreadSupportCount, setUnreadSupportCount] = useState(0)
   const [selectedLogs, setSelectedLogs] = useState<string[]>([])
   const [deletingLogs, setDeletingLogs] = useState(false)
+  const lastActivityRef = useRef(Date.now())
 
   const fetchOrders = useCallback(async () => {
     const { data } = await (supabase() as any)
@@ -93,7 +94,30 @@ export default function SuperAdminDashboard() {
     }
 
     checkAuth()
-  }, [router])
+  }, [router, fetchUnreadSupport])
+
+  // Idle auto-refresh: refresh data after 3 minutes of inactivity
+  useEffect(() => {
+    const trackActivity = () => { lastActivityRef.current = Date.now() }
+    window.addEventListener('mousemove', trackActivity)
+    window.addEventListener('keydown', trackActivity)
+    window.addEventListener('click', trackActivity)
+
+    const interval = setInterval(async () => {
+      if (Date.now() - lastActivityRef.current >= 3 * 60 * 1000) {
+        await fetchOrders()
+        await fetchUnreadSupport()
+        lastActivityRef.current = Date.now()
+      }
+    }, 30_000)
+
+    return () => {
+      window.removeEventListener('mousemove', trackActivity)
+      window.removeEventListener('keydown', trackActivity)
+      window.removeEventListener('click', trackActivity)
+      clearInterval(interval)
+    }
+  }, [fetchOrders, fetchUnreadSupport])
 
   if (loading) {
     return (
@@ -361,73 +385,22 @@ export default function SuperAdminDashboard() {
                   </div>
                 </div>
 
-                {/* Orders Stats */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Orders</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {[
-                      { label: 'Total',        value: orderStats.total,        color: 'text-white' },
-                      { label: 'Pending',      value: orderStats.pending,      color: 'text-yellow-400' },
-                      { label: 'Acknowledged', value: orderStats.acknowledged, color: 'text-purple-400' },
-                      { label: 'Paid',         value: orderStats.paid,         color: 'text-blue-400' },
-                      { label: 'Completed',    value: orderStats.completed,    color: 'text-green-400' },
-                      { label: 'Cancelled',    value: orderStats.cancelled,    color: 'text-red-400' },
-                    ].map(card => (
-                      <div key={card.label} className="bg-navy-900 border border-navy-800 rounded-xl p-4">
-                        <p className="text-xs text-gray-400 mb-1">{card.label}</p>
-                        <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
+                {/* Quick-look: extra stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Orders',          value: orderStats.total,        icon: Package,      color: 'text-orange-400' },
+                    { label: 'Pending Orders',        value: orderStats.pending,      icon: Package,      color: 'text-yellow-400' },
+                    { label: 'Audit Logs',            value: stats.totalAuditLogs,    icon: Database,     color: 'text-purple-400' },
+                    { label: 'Unread Support',        value: unreadSupportCount,      icon: MessageSquare, color: 'text-blue-400' },
+                  ].map(card => (
+                    <div key={card.label} className="bg-navy-900 rounded-xl p-5 border border-navy-800">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <card.icon className={`h-5 w-5 ${card.color}`} />
+                        <span className="text-xs text-gray-400">{card.label}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recent Orders */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Orders</h3>
-                  <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-navy-950">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Order No.</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Package</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-navy-800">
-                        {orders.slice(0, 5).length === 0 ? (
-                          <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-500 text-sm">No orders yet.</td></tr>
-                        ) : orders.slice(0, 5).map(o => (
-                          <tr key={o.id} className="hover:bg-navy-800">
-                            <td className="px-4 py-3 text-xs font-mono text-gray-300">{o.order_number}</td>
-                            <td className="px-4 py-3 text-sm text-white">{o.package_name}</td>
-                            <td className="px-4 py-3 text-sm text-white">₱{Number(o.total_amount).toLocaleString()}</td>
-                            <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[o.status] || 'bg-gray-100 text-gray-800'}`}>{o.status}</span></td>
-                            <td className="px-4 py-3 text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* System Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-navy-900 rounded-xl p-5 border border-navy-800">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Database className="h-5 w-5 text-purple-400" />
-                      <span className="text-xs text-gray-400">Audit Logs</span>
+                      <p className={`text-3xl font-bold ${card.color}`}>{card.value}</p>
                     </div>
-                    <p className="text-3xl font-bold text-purple-400">{stats.totalAuditLogs}</p>
-                  </div>
-                  <div className="bg-navy-900 rounded-xl p-5 border border-navy-800">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <MessageSquare className="h-5 w-5 text-blue-400" />
-                      <span className="text-xs text-gray-400">Unread Support Messages</span>
-                    </div>
-                    <p className="text-3xl font-bold text-blue-400">{unreadSupportCount}</p>
-                  </div>
+                  ))}
                 </div>
 
                 {/* Security Warning */}

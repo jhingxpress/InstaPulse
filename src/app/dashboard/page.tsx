@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare } from 'lucide-react'
@@ -20,13 +20,17 @@ export default function ClientDashboard() {
   const [showPackageModal, setShowPackageModal] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedPackage, setSelectedPackage] = useState<any>(null)
+  const [unreadSupportCount, setUnreadSupportCount] = useState(0)
+  const lastActivityRef = useRef(Date.now())
 
-  const tabs = [
-    { id: 'overview', name: 'Overview', icon: Shield },
-    { id: 'orders', name: 'Orders', icon: Package },
-    { id: 'support', name: 'Support', icon: MessageSquare },
-    { id: 'settings', name: 'Settings', icon: Settings },
-  ]
+  const fetchUnreadSupport = useCallback(async (userId: string) => {
+    const { data } = await (supabase() as any)
+      .from('support_tickets')
+      .select('unread_user')
+      .eq('user_id', userId)
+      .gt('unread_user', 0)
+    setUnreadSupportCount(data ? data.reduce((sum: number, t: any) => sum + (t.unread_user || 0), 0) : 0)
+  }, [])
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -63,15 +67,38 @@ export default function ClientDashboard() {
           })
         }
       }
+      await fetchUnreadSupport(user.id)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
       setLoading(false)
     }
-  }, [router])
+  }, [router, fetchUnreadSupport])
 
   useEffect(() => {
     fetchDashboardData()
+  }, [fetchDashboardData])
+
+  // Idle auto-refresh: refresh data after 3 minutes of inactivity
+  useEffect(() => {
+    const trackActivity = () => { lastActivityRef.current = Date.now() }
+    window.addEventListener('mousemove', trackActivity)
+    window.addEventListener('keydown', trackActivity)
+    window.addEventListener('click', trackActivity)
+
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivityRef.current >= 3 * 60 * 1000) {
+        fetchDashboardData()
+        lastActivityRef.current = Date.now()
+      }
+    }, 30_000)
+
+    return () => {
+      window.removeEventListener('mousemove', trackActivity)
+      window.removeEventListener('keydown', trackActivity)
+      window.removeEventListener('click', trackActivity)
+      clearInterval(interval)
+    }
   }, [fetchDashboardData])
 
   const handleSelectPackage = (pkg: any) => {
@@ -163,18 +190,30 @@ export default function ClientDashboard() {
               className="lg:w-64 flex-shrink-0"
             >
               <nav className="bg-white rounded-xl shadow-lg p-4 space-y-2">
-                {tabs.map((tab) => (
+                {[
+                  { id: 'overview', name: 'Overview',  icon: Shield,       badge: 0 },
+                  { id: 'orders',   name: 'Orders',    icon: Package,      badge: 0 },
+                  { id: 'support',  name: 'Support',   icon: MessageSquare, badge: unreadSupportCount },
+                  { id: 'settings', name: 'Settings',  icon: Settings,     badge: 0 },
+                ].map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
                       activeTab === tab.id
                         ? 'bg-red-600 text-white'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <tab.icon className="h-5 w-5" />
-                    <span>{tab.name}</span>
+                    <div className="flex items-center space-x-3">
+                      <tab.icon className="h-5 w-5" />
+                      <span>{tab.name}</span>
+                    </div>
+                    {tab.badge > 0 && (
+                      <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                        {tab.badge}
+                      </span>
+                    )}
                   </button>
                 ))}
               </nav>
