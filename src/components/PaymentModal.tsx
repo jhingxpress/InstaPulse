@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, CreditCard, CheckCircle, Loader2, ArrowLeft, Smartphone, Building2, Banknote } from 'lucide-react'
+import { X, CreditCard, CheckCircle, Loader2, ArrowLeft, Smartphone, Building2, Banknote, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
+import TermsModal from '@/components/TermsModal'
+import PolicyModal from '@/components/PolicyModal'
 
 interface PackageData {
   id: string
@@ -32,6 +33,8 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
   const [selectedMethod, setSelectedMethod] = useState('')
   const [reference, setReference] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [showPolicyModal, setShowPolicyModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -39,7 +42,7 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
   const handleSubmit = async () => {
     if (!selectedMethod) { setError('Please select a payment method'); return }
     if (selectedMethod !== 'cash' && !reference.trim()) { setError('Please enter your transaction reference'); return }
-    if (!agreedToTerms) { setError('Please agree to the Terms and Conditions and Privacy Policy'); return }
+    if (!agreedToTerms) { setError('You must agree to the InstaPulse Terms and Conditions and Policy before proceeding.'); return }
     if (!pkg) return
 
     setError('')
@@ -48,6 +51,20 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
     try {
       const { data: { user } } = await supabase().auth.getUser()
       if (!user) throw new Error('Session expired. Please login again.')
+
+      // Backend validation: record consent BEFORE order creation
+      const { error: consentErr } = await (supabase() as any)
+        .from('purchase_agreements')
+        .insert({
+          user_id: user.id,
+          package_id: pkg.id,
+          agreed_terms_and_policy: true,
+          agreed_at: new Date().toISOString(),
+        })
+
+      if (consentErr) {
+        throw new Error('User must agree to Terms and Policy before proceeding.')
+      }
 
       const orderNumber = `ORD-${Date.now()}`
 
@@ -97,6 +114,9 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
   if (!pkg) return null
 
   return (
+    <>
+    <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
+    <PolicyModal isOpen={showPolicyModal} onClose={() => setShowPolicyModal(false)} />
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -197,25 +217,50 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
                     </div>
                   )}
 
-                  {/* Terms and Conditions Checkbox */}
-                  <label className="flex items-start space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                      className="mt-1 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-600"
-                    />
-                    <span className="text-sm text-gray-600">
-                      I have read and agree to the{' '}
-                      <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-700 underline">
-                        Terms and Conditions
-                      </Link>
-                      {' '}and{' '}
-                      <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-700 underline">
-                        Privacy Policy
-                      </Link>
-                    </span>
-                  </label>
+                  {/* Legal Consent Section */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                      <p className="text-sm font-semibold text-blue-900">Legal Agreement Required</p>
+                    </div>
+                    <p className="text-xs text-blue-700">
+                      Before proceeding with your purchase, you must read and agree to the InstaPulse Terms and Conditions and Policy.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowTermsModal(true)}
+                        className="flex items-center space-x-2 text-xs text-blue-600 hover:text-blue-800 underline font-medium text-left"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        <span>📄 Terms and Conditions</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowPolicyModal(true)}
+                        className="flex items-center space-x-2 text-xs text-blue-600 hover:text-blue-800 underline font-medium text-left"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        <span>📄 InstaPulse Policy</span>
+                      </button>
+                    </div>
+                    <div className="pt-2 border-t border-blue-200">
+                      <label className="flex items-start space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={agreedToTerms}
+                          onChange={(e) => setAgreedToTerms(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-600"
+                        />
+                        <span className="text-sm text-gray-700 leading-snug">
+                          I have read and agree to the InstaPulse{' '}
+                          <button type="button" onClick={() => setShowTermsModal(true)} className="text-blue-600 hover:text-blue-800 underline font-medium">Terms and Conditions</button>
+                          {' '}and{' '}
+                          <button type="button" onClick={() => setShowPolicyModal(true)} className="text-blue-600 hover:text-blue-800 underline font-medium">Policy</button>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
 
                   {/* Error */}
                   {error && (
@@ -243,5 +288,6 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
         </div>
       )}
     </AnimatePresence>
+    </>
   )
 }
