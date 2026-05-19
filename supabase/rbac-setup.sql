@@ -211,36 +211,36 @@ BEGIN
         WHERE table_schema = 'public' 
         AND table_name = 'audit_logs'
     ) THEN
-        EXECUTE 'CREATE OR REPLACE FUNCTION public.log_user_changes()
+        CREATE OR REPLACE FUNCTION public.log_user_changes()
         RETURNS TRIGGER AS $$
         BEGIN
-          IF (TG_OP = ''INSERT'') THEN
+          IF (TG_OP = 'INSERT') THEN
             INSERT INTO public.audit_logs (user_id, action, target_table, target_id, new_data)
             VALUES (
               auth.uid(),
-              ''INSERT'',
-              ''users'',
+              'INSERT',
+              'users',
               NEW.id::TEXT,
               to_jsonb(NEW)
             );
             RETURN NEW;
-          ELSIF (TG_OP = ''UPDATE'') THEN
+          ELSIF (TG_OP = 'UPDATE') THEN
             INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data, new_data)
             VALUES (
               auth.uid(),
-              ''UPDATE'',
-              ''users'',
+              'UPDATE',
+              'users',
               NEW.id::TEXT,
               to_jsonb(OLD),
               to_jsonb(NEW)
             );
             RETURN NEW;
-          ELSIF (TG_OP = ''DELETE'') THEN
+          ELSIF (TG_OP = 'DELETE') THEN
             INSERT INTO public.audit_logs (user_id, action, target_table, target_id, old_data)
             VALUES (
               auth.uid(),
-              ''DELETE'',
-              ''users'',
+              'DELETE',
+              'users',
               OLD.id::TEXT,
               to_jsonb(OLD)
             );
@@ -248,13 +248,13 @@ BEGIN
           END IF;
           RETURN NULL;
         END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER';
+        $$ LANGUAGE plpgsql SECURITY DEFINER;
         
-        EXECUTE 'DROP TRIGGER IF EXISTS log_user_changes_trigger ON public.users';
-        EXECUTE 'CREATE TRIGGER log_user_changes_trigger
+        DROP TRIGGER IF EXISTS log_user_changes_trigger ON public.users;
+        CREATE TRIGGER log_user_changes_trigger
           AFTER INSERT OR UPDATE OR DELETE ON public.users
           FOR EACH ROW
-          EXECUTE FUNCTION public.log_user_changes()';
+          EXECUTE FUNCTION public.log_user_changes();
     END IF;
 END $$;
 
