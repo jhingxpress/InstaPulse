@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageSquare, ArrowLeft, Send, Plus, Loader2, RefreshCw } from 'lucide-react'
+import { MessageSquare, ArrowLeft, Send, Plus, Loader2, RefreshCw, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface SupportPanelProps {
@@ -81,12 +81,37 @@ export default function SupportPanel({ isAdmin, darkMode = false }: SupportPanel
     if (currentUser) fetchTickets()
   }, [currentUser, fetchTickets])
 
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!confirm('Delete this message?')) return
+    const { error } = await s.from('support_messages').delete().eq('id', msgId)
+    if (error) {
+      alert('Failed to delete message: ' + error.message)
+    } else {
+      setMessages(prev => prev.filter((m: any) => m.id !== msgId))
+    }
+  }
+
   const openTicket = async (ticket: any) => {
     setSelectedTicket(ticket)
     setView('thread')
     setLoadingMessages(true)
-    const { data } = await s.from('support_messages').select('*').eq('ticket_id', ticket.id).order('created_at', { ascending: true })
-    setMessages(data || [])
+    const { data: msgs } = await s.from('support_messages').select('*').eq('ticket_id', ticket.id).order('created_at', { ascending: true })
+    let enriched = msgs || []
+    if (isAdmin && enriched.length > 0) {
+      const userSenderIds = [...new Set(
+        enriched.filter((m: any) => m.sender_role === 'user').map((m: any) => m.sender_id as string)
+      )]
+      if (userSenderIds.length > 0) {
+        const { data: profiles } = await s.from('users').select('id, full_name').in('id', userSenderIds)
+        const nameMap: Record<string, string> = {}
+        ;(profiles || []).forEach((p: any) => { nameMap[p.id] = p.full_name || 'Unknown' })
+        enriched = enriched.map((m: any) => ({
+          ...m,
+          sender_name: m.sender_role === 'user' ? (nameMap[m.sender_id] || 'Unknown') : null,
+        }))
+      }
+    }
+    setMessages(enriched)
     setLoadingMessages(false)
 
     // Mark read
@@ -303,13 +328,20 @@ export default function SupportPanel({ isAdmin, darkMode = false }: SupportPanel
                 }`}>
                   {!isOwn && (
                     <p className="text-xs font-semibold mb-1 opacity-80">
-                      {isAdminMsg ? 'InstaPulse Support' : 'You'}
+                      {isAdminMsg ? 'Admin' : (isAdmin ? (msg.sender_name || 'User') : 'User')}
                     </p>
                   )}
                   <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                  <p className={`text-xs mt-1 opacity-60 ${isOwn ? 'text-right' : ''}`}>
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                  <div className={`flex items-center gap-2 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                    <p className="text-xs opacity-60">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    {currentRole === 'superadmin' && (
+                      <button onClick={() => handleDeleteMessage(msg.id)} className="opacity-60 hover:opacity-100 text-red-300 flex-shrink-0" title="Delete message">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )
