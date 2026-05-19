@@ -13,11 +13,11 @@ interface OrderDetailsModalProps {
 }
 
 const STATUS_FLOW: Record<string, { next: string | null; label: string; color: string }> = {
-  pending:      { next: 'paid',        label: 'Mark as Paid',        color: 'bg-blue-600 hover:bg-blue-700' },
-  paid:         { next: 'acknowledged',label: 'Acknowledge Order',   color: 'bg-purple-600 hover:bg-purple-700' },
-  acknowledged: { next: 'completed',   label: 'Mark as Completed',   color: 'bg-green-600 hover:bg-green-700' },
-  completed:    { next: null,          label: 'Completed',           color: 'bg-green-600 opacity-50 cursor-not-allowed' },
-  cancelled:    { next: null,          label: 'Cancelled',           color: 'bg-red-600 opacity-50 cursor-not-allowed' },
+  pending:      { next: 'acknowledged', label: 'Acknowledge Order',  color: 'bg-purple-600 hover:bg-purple-700' },
+  acknowledged: { next: 'paid',         label: 'Mark as Paid',       color: 'bg-blue-600 hover:bg-blue-700' },
+  paid:         { next: 'completed',    label: 'Mark as Completed',  color: 'bg-green-600 hover:bg-green-700' },
+  completed:    { next: null,           label: 'Completed',          color: 'bg-green-600 opacity-50 cursor-not-allowed' },
+  cancelled:    { next: null,           label: 'Cancelled',          color: 'bg-red-600 opacity-50 cursor-not-allowed' },
 }
 
 const STATUS_COLORS: Record<string, string> = {

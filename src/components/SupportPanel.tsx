@@ -58,10 +58,20 @@ export default function SupportPanel({ isAdmin, darkMode = false }: SupportPanel
   const fetchTickets = useCallback(async () => {
     setLoadingTickets(true)
     try {
-      let query = s.from('support_tickets').select(`*, users!support_tickets_user_id_fkey(full_name, email)`).order('updated_at', { ascending: false })
+      let query = s.from('support_tickets').select('*').order('updated_at', { ascending: false })
       if (!isAdmin) query = query.eq('user_id', currentUser?.id ?? '')
       const { data } = await query
-      setTickets(data || [])
+      const tickets = data || []
+
+      if (isAdmin && tickets.length > 0) {
+        const userIds = [...new Set(tickets.map((t: any) => t.user_id))]
+        const { data: users } = await s.from('users').select('id, full_name, email').in('id', userIds)
+        const userMap: Record<string, any> = {}
+        ;(users || []).forEach((u: any) => { userMap[u.id] = u })
+        setTickets(tickets.map((t: any) => ({ ...t, users: userMap[t.user_id] || null })))
+      } else {
+        setTickets(tickets)
+      }
     } finally {
       setLoadingTickets(false)
     }
@@ -208,20 +218,22 @@ export default function SupportPanel({ isAdmin, darkMode = false }: SupportPanel
         ) : (
           <div className="space-y-2">
             {tickets.map(ticket => {
-              const unread = isAdmin ? ticket.unread_admin : ticket.unread_user
+              const unread = isAdmin ? (ticket.unread_admin || 0) : (ticket.unread_user || 0)
+              const isUnread = unread > 0
               return (
                 <button key={ticket.id} onClick={() => openTicket(ticket)}
-                  className={`w-full text-left rounded-xl p-4 border transition-all ${bg} ${itemBg}`}>
+                  className={`w-full text-left rounded-xl p-4 border transition-all ${isUnread ? (darkMode ? 'border-red-500 bg-red-900/10' : 'border-red-300 bg-red-50') : `${bg} ${itemBg}`}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
-                        <p className={`font-semibold truncate ${text}`}>{ticket.subject}</p>
-                        {unread > 0 && (
-                          <span className="bg-red-600 text-white text-xs rounded-full px-2 py-0.5 font-bold flex-shrink-0">{unread}</span>
+                        {isUnread && <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />}
+                        <p className={`truncate ${isUnread ? `font-bold ${text}` : `font-medium ${text}`}`}>{ticket.subject}</p>
+                        {isUnread && (
+                          <span className="bg-red-600 text-white text-xs rounded-full px-2 py-0.5 font-bold flex-shrink-0">{unread} new</span>
                         )}
                       </div>
                       {isAdmin && ticket.users && (
-                        <p className={`text-xs ${sub} mb-1`}>{ticket.users.full_name} · {ticket.users.email}</p>
+                        <p className={`text-xs ${sub} mb-1`}>{ticket.users?.full_name || 'Unknown'} · {ticket.users?.email || ''}</p>
                       )}
                       <p className={`text-xs ${sub}`}>{new Date(ticket.updated_at).toLocaleString()}</p>
                     </div>

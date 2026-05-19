@@ -23,6 +23,9 @@ export default function SuperAdminDashboard() {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all')
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [clientOrders, setClientOrders] = useState<any[]>([])
+  const [unreadSupportCount, setUnreadSupportCount] = useState(0)
+  const [selectedLogs, setSelectedLogs] = useState<string[]>([])
+  const [deletingLogs, setDeletingLogs] = useState(false)
 
   const fetchOrders = useCallback(async () => {
     const { data } = await (supabase() as any)
@@ -31,6 +34,29 @@ export default function SuperAdminDashboard() {
       .order('created_at', { ascending: false })
     if (data) setOrders(data)
   }, [])
+
+  const fetchUnreadSupport = useCallback(async () => {
+    const { data } = await (supabase() as any)
+      .from('support_tickets')
+      .select('unread_admin')
+      .gt('unread_admin', 0)
+    setUnreadSupportCount(data ? data.reduce((sum: number, t: any) => sum + (t.unread_admin || 0), 0) : 0)
+  }, [])
+
+  const logAudit = async (action: string, targetType: string, targetId: string, details: Record<string, any> = {}) => {
+    try {
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) return
+      const { data: profile } = await (supabase() as any).from('users').select('full_name, email, role').eq('id', user.id).single()
+      await (supabase() as any).from('audit_logs').insert({
+        user_id: user.id,
+        action,
+        target_table: targetType,
+        target_id: targetId,
+        new_data: { actor_name: profile?.full_name || user.email, actor_email: profile?.email || user.email, actor_role: profile?.role || 'unknown', ...details },
+      })
+    } catch {}
+  }
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -63,6 +89,7 @@ export default function SuperAdminDashboard() {
         .select('*')
         .order('created_at', { ascending: false })
       if (allOrders) setOrders(allOrders)
+      await fetchUnreadSupport()
     }
 
     checkAuth()
@@ -91,10 +118,34 @@ export default function SuperAdminDashboard() {
     totalAuditLogs: auditLogs.length,
   }
 
+  const pendingOrdersCount = orders.filter(o => o.status === 'pending').length
+
+  const handleDeleteSelectedLogs = async () => {
+    if (selectedLogs.length === 0) return
+    if (!confirm(`Delete ${selectedLogs.length} selected log(s)?`)) return
+    setDeletingLogs(true)
+    try {
+      await (supabase() as any).from('audit_logs').delete().in('id', selectedLogs)
+      setAuditLogs(prev => prev.filter(l => !selectedLogs.includes(l.id)))
+      setSelectedLogs([])
+    } finally {
+      setDeletingLogs(false)
+    }
+  }
+
+  const toggleLogSelect = (id: string) => {
+    setSelectedLogs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const toggleSelectAllLogs = () => {
+    setSelectedLogs(prev => prev.length === auditLogs.length ? [] : auditLogs.map(l => l.id))
+  }
+
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    const oldProfile = profiles.find(p => p.id === userId)
     const success = await updateUserRole(userId, newRole)
     if (success) {
-      // Refresh profiles
+      await logAudit('ROLE_CHANGE', 'users', userId, { from: oldProfile?.role, to: newRole, target_email: oldProfile?.email })
       const allProfiles = await getAllProfiles()
       setProfiles(allProfiles)
     } else {
@@ -123,12 +174,12 @@ export default function SuperAdminDashboard() {
   )
 
   const tabs = [
-    { id: 'overview', name: 'System Overview', icon: Shield },
-    { id: 'orders', name: 'Orders', icon: Package },
-    { id: 'support', name: 'Support Inbox', icon: MessageSquare },
-    { id: 'users', name: 'User Management', icon: Users },
-    { id: 'audit', name: 'Audit Logs', icon: FileText },
-    { id: 'settings', name: 'System Settings', icon: Settings },
+    { id: 'overview', name: 'System Overview', icon: Shield, badge: 0 },
+    { id: 'orders',   name: 'Orders',          icon: Package,      badge: pendingOrdersCount },
+    { id: 'support',  name: 'Support Inbox',   icon: MessageSquare, badge: unreadSupportCount },
+    { id: 'users',    name: 'User Management', icon: Users,         badge: 0 },
+    { id: 'audit',    name: 'Audit Logs',      icon: FileText,      badge: 0 },
+    { id: 'settings', name: 'System Settings', icon: Settings,      badge: 0 },
   ]
 
   const STATUS_COLORS: Record<string, string> = {
@@ -206,15 +257,22 @@ export default function SuperAdminDashboard() {
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  onClick={() => { setActiveTab(tab.id); if (tab.id === 'support') fetchUnreadSupport() }}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
                     activeTab === tab.id
                       ? 'bg-red-600 text-white'
                       : 'text-gray-300 hover:bg-navy-800'
                   }`}
                 >
-                  <tab.icon className="h-5 w-5" />
-                  <span>{tab.name}</span>
+                  <div className="flex items-center space-x-3">
+                    <tab.icon className="h-5 w-5" />
+                    <span>{tab.name}</span>
+                  </div>
+                  {tab.badge > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -282,46 +340,93 @@ export default function SuperAdminDashboard() {
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-white">System Overview</h2>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                  <div className="bg-navy-900 rounded-xl shadow-lg p-6 border border-navy-800">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Users className="h-8 w-8 text-blue-400" />
-                      <span className="text-gray-400">Total Users</span>
-                    </div>
-                    <p className="text-3xl font-bold text-white">{stats.totalUsers}</p>
+                {/* User Stats */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Users</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: 'Total Users',    value: stats.totalUsers,       icon: Users,    color: 'text-blue-400' },
+                      { label: 'Regular Users',  value: stats.totalRegularUsers,icon: Users,    color: 'text-green-400' },
+                      { label: 'Admins',         value: stats.totalAdmins,      icon: Shield,   color: 'text-yellow-400' },
+                      { label: 'Superadmins',    value: stats.totalSuperadmins, icon: Lock,     color: 'text-red-400' },
+                    ].map(card => (
+                      <div key={card.label} className="bg-navy-900 rounded-xl p-5 border border-navy-800">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <card.icon className={`h-5 w-5 ${card.color}`} />
+                          <span className="text-xs text-gray-400">{card.label}</span>
+                        </div>
+                        <p className={`text-3xl font-bold ${card.color}`}>{card.value}</p>
+                      </div>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="bg-navy-900 rounded-xl shadow-lg p-6 border border-navy-800">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Shield className="h-8 w-8 text-yellow-400" />
-                      <span className="text-gray-400">Admins</span>
-                    </div>
-                    <p className="text-3xl font-bold text-white">{stats.totalAdmins}</p>
+                {/* Orders Stats */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Orders</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {[
+                      { label: 'Total',        value: orderStats.total,        color: 'text-white' },
+                      { label: 'Pending',      value: orderStats.pending,      color: 'text-yellow-400' },
+                      { label: 'Acknowledged', value: orderStats.acknowledged, color: 'text-purple-400' },
+                      { label: 'Paid',         value: orderStats.paid,         color: 'text-blue-400' },
+                      { label: 'Completed',    value: orderStats.completed,    color: 'text-green-400' },
+                      { label: 'Cancelled',    value: orderStats.cancelled,    color: 'text-red-400' },
+                    ].map(card => (
+                      <div key={card.label} className="bg-navy-900 border border-navy-800 rounded-xl p-4">
+                        <p className="text-xs text-gray-400 mb-1">{card.label}</p>
+                        <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
+                      </div>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="bg-navy-900 rounded-xl shadow-lg p-6 border border-navy-800">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Lock className="h-8 w-8 text-red-400" />
-                      <span className="text-gray-400">Superadmins</span>
-                    </div>
-                    <p className="text-3xl font-bold text-white">{stats.totalSuperadmins}</p>
+                {/* Recent Orders */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Orders</h3>
+                  <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-navy-950">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Order No.</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Package</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-navy-800">
+                        {orders.slice(0, 5).length === 0 ? (
+                          <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-500 text-sm">No orders yet.</td></tr>
+                        ) : orders.slice(0, 5).map(o => (
+                          <tr key={o.id} className="hover:bg-navy-800">
+                            <td className="px-4 py-3 text-xs font-mono text-gray-300">{o.order_number}</td>
+                            <td className="px-4 py-3 text-sm text-white">{o.package_name}</td>
+                            <td className="px-4 py-3 text-sm text-white">₱{Number(o.total_amount).toLocaleString()}</td>
+                            <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[o.status] || 'bg-gray-100 text-gray-800'}`}>{o.status}</span></td>
+                            <td className="px-4 py-3 text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
+                </div>
 
-                  <div className="bg-navy-900 rounded-xl shadow-lg p-6 border border-navy-800">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Users className="h-8 w-8 text-green-400" />
-                      <span className="text-gray-400">Regular Users</span>
+                {/* System Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-navy-900 rounded-xl p-5 border border-navy-800">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Database className="h-5 w-5 text-purple-400" />
+                      <span className="text-xs text-gray-400">Audit Logs</span>
                     </div>
-                    <p className="text-3xl font-bold text-white">{stats.totalRegularUsers}</p>
+                    <p className="text-3xl font-bold text-purple-400">{stats.totalAuditLogs}</p>
                   </div>
-
-                  <div className="bg-navy-900 rounded-xl shadow-lg p-6 border border-navy-800">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Database className="h-8 w-8 text-purple-400" />
-                      <span className="text-gray-400">Audit Logs</span>
+                  <div className="bg-navy-900 rounded-xl p-5 border border-navy-800">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <MessageSquare className="h-5 w-5 text-blue-400" />
+                      <span className="text-xs text-gray-400">Unread Support Messages</span>
                     </div>
-                    <p className="text-3xl font-bold text-white">{stats.totalAuditLogs}</p>
+                    <p className="text-3xl font-bold text-blue-400">{unreadSupportCount}</p>
                   </div>
                 </div>
 
@@ -332,7 +437,7 @@ export default function SuperAdminDashboard() {
                     <div>
                       <h3 className="text-lg font-bold text-red-500 mb-2">Security Notice</h3>
                       <p className="text-gray-300">
-                        You have full system access. All actions are logged in the audit logs. 
+                        You have full system access. All actions are logged in the audit logs.
                         Use this power responsibly and only make changes when necessary.
                       </p>
                     </div>
@@ -506,33 +611,94 @@ export default function SuperAdminDashboard() {
             )}
 
             {activeTab === 'audit' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-white">Audit Logs</h2>
-
-                <div className="bg-navy-900 rounded-xl shadow-lg overflow-hidden border border-navy-800">
-                  <table className="w-full">
-                    <thead className="bg-navy-950">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Action</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Target</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">User ID</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Timestamp</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-navy-800">
-                      {auditLogs.map((log) => (
-                        <tr key={log.id}>
-                          <td className="px-6 py-4 text-sm text-white">{log.action}</td>
-                          <td className="px-6 py-4 text-sm text-white">{log.target_table}</td>
-                          <td className="px-6 py-4 text-sm text-gray-400">{log.user_id || 'System'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-400">
-                            {new Date(log.created_at).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Audit Logs</h2>
+                  <div className="flex items-center space-x-3">
+                    {selectedLogs.length > 0 && (
+                      <button
+                        onClick={handleDeleteSelectedLogs}
+                        disabled={deletingLogs}
+                        className="flex items-center space-x-1 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                      >
+                        {deletingLogs ? 'Deleting...' : `Delete Selected (${selectedLogs.length})`}
+                      </button>
+                    )}
+                    <span className="text-xs text-gray-400">{auditLogs.length} total logs</span>
+                  </div>
                 </div>
+
+                {auditLogs.length === 0 ? (
+                  <div className="bg-navy-900 border border-navy-800 rounded-xl p-8 text-center">
+                    <Database className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500">No audit logs yet. Actions like role changes will be recorded here.</p>
+                  </div>
+                ) : (
+                  <div className="bg-navy-900 rounded-xl shadow-lg overflow-hidden border border-navy-800">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-navy-950">
+                          <tr>
+                            <th className="px-4 py-3 text-left">
+                              <input
+                                type="checkbox"
+                                checked={selectedLogs.length === auditLogs.length && auditLogs.length > 0}
+                                onChange={toggleSelectAllLogs}
+                                className="w-4 h-4 rounded border-gray-600 bg-navy-800 text-red-600 focus:ring-red-600"
+                              />
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Actor</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Role</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Action</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Target</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Details</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Timestamp</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-navy-800">
+                          {auditLogs.map((log) => {
+                            const actorName = log.new_data?.actor_name || log.user_id || 'System'
+                            const actorRole = log.new_data?.actor_role || '—'
+                            const details = log.new_data
+                              ? Object.entries(log.new_data)
+                                  .filter(([k]) => !['actor_name','actor_email','actor_role'].includes(k))
+                                  .map(([k, v]) => `${k}: ${v}`).join(' · ')
+                              : '—'
+                            return (
+                              <tr key={log.id} className={`hover:bg-navy-800 transition-colors ${selectedLogs.includes(log.id) ? 'bg-red-900/20' : ''}`}>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedLogs.includes(log.id)}
+                                    onChange={() => toggleLogSelect(log.id)}
+                                    className="w-4 h-4 rounded border-gray-600 bg-navy-800 text-red-600 focus:ring-red-600"
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="text-sm text-white font-medium">{actorName}</p>
+                                  {log.new_data?.actor_email && <p className="text-xs text-gray-500">{log.new_data.actor_email}</p>}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                                    actorRole === 'superadmin' ? 'bg-red-900 text-red-300' :
+                                    actorRole === 'admin' ? 'bg-yellow-900 text-yellow-300' :
+                                    'bg-gray-700 text-gray-300'
+                                  }`}>{actorRole}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="text-xs font-mono bg-navy-800 text-blue-300 px-2 py-0.5 rounded">{log.action}</span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-400">{log.target_table}/{log.target_id || '—'}</td>
+                                <td className="px-4 py-3 text-xs text-gray-400 max-w-[200px] truncate" title={details}>{details || '—'}</td>
+                                <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
