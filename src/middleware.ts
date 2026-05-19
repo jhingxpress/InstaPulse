@@ -34,6 +34,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
+  // Dashboard routes: block deleted users (auth session exists but no public.users profile)
+  if (req.nextUrl.pathname.startsWith('/dashboard') && user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile) {
+      return NextResponse.redirect(new URL('/login', req.url))
+    }
+  }
+
   // Admin routes (admin or superadmin only)
   if (req.nextUrl.pathname.startsWith('/admin') && user) {
     const { data: profile } = await supabase
