@@ -80,8 +80,11 @@ END $$;
 
 -- Drop existing policies to avoid conflicts
 DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
-DROP POLICY IF EXISTS "Admins can view all users" ON public.users;
+DROP POLICY IF EXISTS "Admin can view all users" ON public.users;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
+DROP POLICY IF EXISTS "Superadmin can view all users" ON public.users;
+DROP POLICY IF EXISTS "Superadmin can update all users" ON public.users;
+DROP POLICY IF EXISTS "Admin can update users (no role changes)" ON public.users;
 
 -- Users can SELECT only their own profile
 CREATE POLICY "Users can view own profile"
