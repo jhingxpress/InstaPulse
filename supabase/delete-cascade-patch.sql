@@ -38,41 +38,7 @@ ALTER TABLE public.kyc_documents
   FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL;
 
 -- ============================================================
--- 4. RPC: delete_user_as_superadmin(target_user_id)
---    SECURITY DEFINER → bypasses RLS for deletion
---    Deletes public.users profile (cascades to orders, payments, etc.)
---    Note: auth.users identity remains but is orphaned (no profile = no app access)
---    To fully delete auth user, use Supabase Dashboard or Edge Function with service role
--- ============================================================
-CREATE OR REPLACE FUNCTION public.delete_user_as_superadmin(target_user_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  caller_role text;
-BEGIN
-  -- Verify caller is superadmin
-  SELECT role INTO caller_role FROM public.users WHERE id = auth.uid();
-  IF caller_role IS DISTINCT FROM 'superadmin' THEN
-    RAISE EXCEPTION 'Only superadmins can delete users';
-  END IF;
-
-  -- Prevent self-deletion
-  IF target_user_id = auth.uid() THEN
-    RAISE EXCEPTION 'You cannot delete your own account';
-  END IF;
-
-  -- Delete public profile (cascades to orders, payments, kyc_documents, support_tickets, etc.)
-  DELETE FROM public.users WHERE id = target_user_id;
-END;
-$$;
-
--- Grant execute to authenticated users (auth check is inside the function)
-GRANT EXECUTE ON FUNCTION public.delete_user_as_superadmin(uuid) TO authenticated;
-
--- ============================================================
--- 5. RLS: Superadmin can DELETE orders
+-- 4. RLS: Superadmin can DELETE orders
 -- ============================================================
 DROP POLICY IF EXISTS "Superadmin can delete orders" ON public.orders;
 CREATE POLICY "Superadmin can delete orders"
@@ -80,8 +46,9 @@ CREATE POLICY "Superadmin can delete orders"
   USING (public.get_my_role() = 'superadmin');
 
 -- ============================================================
--- 6. RLS: Superadmin can DELETE from users table
---    (belt-and-suspenders; RPC above is the preferred path)
+-- 5. RLS: Superadmin can DELETE users
+--    Frontend does: supabase.from('users').delete().eq('id', userId)
+--    FK cascades (fixed above) handle orders, payments, tickets, etc.
 -- ============================================================
 DROP POLICY IF EXISTS "Superadmin can delete users" ON public.users;
 CREATE POLICY "Superadmin can delete users"

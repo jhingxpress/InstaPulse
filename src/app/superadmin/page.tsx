@@ -179,7 +179,7 @@ export default function SuperAdminDashboard() {
 
   const handleDeleteUser = async (userId: string, userEmail?: string) => {
     if (!confirm(`Delete user "${userEmail || userId}"? This will remove all their orders, payments, and support tickets. This cannot be undone.`)) return
-    const { error } = await (supabase() as any).rpc('delete_user_as_superadmin', { target_user_id: userId })
+    const { error } = await (supabase() as any).from('users').delete().eq('id', userId)
     if (error) {
       alert('Failed to delete user: ' + error.message)
     } else {
@@ -581,7 +581,7 @@ export default function SuperAdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <button
-                              onClick={() => handleDeleteUser(profile.id, profile.email)}
+                              onClick={() => handleDeleteUser(profile.id, profile.email ?? undefined)}
                               className="flex items-center space-x-1 text-red-500 hover:text-red-400 text-sm font-medium disabled:opacity-30"
                               disabled={profile.role === 'superadmin'}
                               title={profile.role === 'superadmin' ? 'Cannot delete superadmin accounts' : 'Delete user'}
