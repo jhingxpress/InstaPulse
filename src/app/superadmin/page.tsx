@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye } from 'lucide-react'
+import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { isSuperAdmin, getAllProfiles, updateUserRole, type Profile, type UserRole } from '@/lib/profile'
 import OrderDetailsModal from '@/components/OrderDetailsModal'
@@ -177,18 +177,25 @@ export default function SuperAdminDashboard() {
     }
   }
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return
-    }
-
-    const { error } = await supabase().auth.admin.deleteUser(userId)
+  const handleDeleteUser = async (userId: string, userEmail?: string) => {
+    if (!confirm(`Delete user "${userEmail || userId}"? This will remove all their orders, payments, and support tickets. This cannot be undone.`)) return
+    const { error } = await (supabase() as any).rpc('delete_user_as_superadmin', { target_user_id: userId })
     if (error) {
       alert('Failed to delete user: ' + error.message)
     } else {
-      // Refresh profiles
-      const allProfiles = await getAllProfiles()
-      setProfiles(allProfiles)
+      await logAudit('DELETE_USER', 'users', userId, { deleted_email: userEmail })
+      setProfiles(prev => prev.filter(p => p.id !== userId))
+    }
+  }
+
+  const handleDeleteOrder = async (orderId: string, orderNumber: string) => {
+    if (!confirm(`Delete order ${orderNumber}? This will also remove associated payments. This cannot be undone.`)) return
+    const { error } = await (supabase() as any).from('orders').delete().eq('id', orderId)
+    if (error) {
+      alert('Failed to delete order: ' + error.message)
+    } else {
+      await logAudit('DELETE_ORDER', 'orders', orderId, { order_number: orderNumber })
+      setOrders(prev => prev.filter(o => o.id !== orderId))
     }
   }
 
@@ -483,7 +490,7 @@ export default function SuperAdminDashboard() {
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Reference</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
                           <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Action</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-navy-800">
@@ -501,9 +508,14 @@ export default function SuperAdminDashboard() {
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString()}</td>
                             <td className="px-4 py-3">
-                              <button onClick={() => setSelectedOrder(order)} className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-xs">
-                                <Eye className="h-3.5 w-3.5" /><span>View</span>
-                              </button>
+                              <div className="flex items-center space-x-3">
+                                <button onClick={() => setSelectedOrder(order)} className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-xs">
+                                  <Eye className="h-3.5 w-3.5" /><span>View</span>
+                                </button>
+                                <button onClick={() => handleDeleteOrder(order.id, order.order_number)} className="flex items-center space-x-1 text-red-400 hover:text-red-300 text-xs">
+                                  <Trash2 className="h-3.5 w-3.5" /><span>Delete</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -569,10 +581,12 @@ export default function SuperAdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <button
-                              onClick={() => handleDeleteUser(profile.id)}
-                              className="text-red-500 hover:text-red-400 text-sm font-medium"
+                              onClick={() => handleDeleteUser(profile.id, profile.email)}
+                              className="flex items-center space-x-1 text-red-500 hover:text-red-400 text-sm font-medium disabled:opacity-30"
+                              disabled={profile.role === 'superadmin'}
+                              title={profile.role === 'superadmin' ? 'Cannot delete superadmin accounts' : 'Delete user'}
                             >
-                              Delete
+                              <Trash2 className="h-4 w-4" /><span>Delete</span>
                             </button>
                           </td>
                         </tr>
