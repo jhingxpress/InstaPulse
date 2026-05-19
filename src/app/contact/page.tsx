@@ -223,8 +223,8 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-navy-900 mb-1">Office Location</h3>
                       <p className="text-gray-600">
-                        123 Security Street<br />
-                        Davao City, Philippines 8000
+                        1st Crumb, Digos City<br />
+                        Davao del Sur, Philippines
                       </p>
                     </div>
                   </div>
@@ -322,7 +322,7 @@ export default function ContactPage() {
             </div>
           </div>
           <div className="border-t border-navy-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 InstaPulse. All rights reserved.</p>
+            <p>&copy; 2026 InstaPulse. All rights reserved.</p>
           </div>
         </div>
       </footer>

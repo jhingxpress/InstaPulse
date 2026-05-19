@@ -87,6 +87,15 @@ export default function ClientDashboard() {
     setActiveTab('orders')
   }
 
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm('Are you sure you want to cancel this order?')) return
+    await (supabase() as any)
+      .from('orders')
+      .update({ status: 'cancelled' })
+      .eq('id', orderId)
+    fetchDashboardData()
+  }
+
   const handleLogout = async () => {
     await supabase().auth.signOut()
     router.push('/login')
@@ -300,6 +309,7 @@ export default function ClientDashboard() {
                             <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Payment</th>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -315,6 +325,16 @@ export default function ClientDashboard() {
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-sm text-gray-900">{new Date(order.created_at).toLocaleDateString()}</td>
+                              <td className="px-6 py-4">
+                                {order.status === 'pending' && (
+                                  <button
+                                    onClick={() => handleCancelOrder(order.id)}
+                                    className="text-xs text-red-600 hover:text-red-800 border border-red-300 hover:border-red-500 px-3 py-1 rounded-full font-medium transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

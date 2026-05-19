@@ -157,8 +157,8 @@ WHERE EXISTS (SELECT 1 FROM public.packages WHERE name = 'Enterprise Security');
 INSERT INTO public.package_items (package_id, item_name, quantity) 
 SELECT 
     (SELECT id FROM public.packages WHERE name = 'Enterprise Security' LIMIT 1),
-    '4x Alert Button',
-    4
+    '2x Alert Button',
+    2
 WHERE EXISTS (SELECT 1 FROM public.packages WHERE name = 'Enterprise Security');
 
 -- Create indexes for better performance
