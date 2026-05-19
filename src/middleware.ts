@@ -1,60 +1,66 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
-  const supabase = createClient(
+  let response = NextResponse.next({ request: req })
+
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value))
+          response = NextResponse.next({ request: req })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
   )
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Protected routes
   const protectedRoutes = ['/dashboard', '/admin', '/superadmin']
   const isProtectedRoute = protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
-  if (isProtectedRoute && !session) {
+  if (isProtectedRoute && !user) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
   // Admin routes (admin or superadmin only)
-  if (req.nextUrl.pathname.startsWith('/admin')) {
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (user) {
-      const { data: profile } = await (supabase as any)
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+  if (req.nextUrl.pathname.startsWith('/admin') && user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-      if (!profile || (profile.role !== 'admin' && profile.role !== 'superadmin')) {
-        return NextResponse.redirect(new URL('/403', req.url))
-      }
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'superadmin')) {
+      return NextResponse.redirect(new URL('/403', req.url))
     }
   }
 
   // Superadmin routes (superadmin only)
-  if (req.nextUrl.pathname.startsWith('/superadmin')) {
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (user) {
-      const { data: profile } = await (supabase as any)
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+  if (req.nextUrl.pathname.startsWith('/superadmin') && user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-      if (!profile || profile.role !== 'superadmin') {
-        return NextResponse.redirect(new URL('/403', req.url))
-      }
+    if (!profile || profile.role !== 'superadmin') {
+      return NextResponse.redirect(new URL('/403', req.url))
     }
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {

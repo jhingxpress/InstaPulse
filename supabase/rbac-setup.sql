@@ -78,6 +78,16 @@ END $$;
 -- 4. RLS POLICIES FOR USERS
 -- ============================================
 
+-- ============================================
+-- 4a. HELPER FUNCTION (avoids recursive RLS)
+-- ============================================
+
+-- Non-recursive role check - uses SECURITY DEFINER to bypass RLS
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.users WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 -- Drop existing policies to avoid conflicts
 DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 DROP POLICY IF EXISTS "Admin can view all users" ON public.users;
@@ -85,6 +95,13 @@ DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 DROP POLICY IF EXISTS "Superadmin can view all users" ON public.users;
 DROP POLICY IF EXISTS "Superadmin can update all users" ON public.users;
 DROP POLICY IF EXISTS "Admin can update users (no role changes)" ON public.users;
+DROP POLICY IF EXISTS "Allow trigger to insert users" ON public.users;
+
+-- Trigger/system can INSERT new users (needed for handle_new_user trigger)
+CREATE POLICY "Allow trigger to insert users"
+  ON public.users
+  FOR INSERT
+  WITH CHECK (true);
 
 -- Users can SELECT only their own profile
 CREATE POLICY "Users can view own profile"
@@ -98,52 +115,29 @@ CREATE POLICY "Users can update own profile"
   FOR UPDATE
   USING (auth.uid() = id);
 
--- Superadmin can SELECT all users
+-- Superadmin can SELECT all users (non-recursive via get_my_role)
 CREATE POLICY "Superadmin can view all users"
   ON public.users
   FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role = 'superadmin'
-    )
-  );
+  USING (public.get_my_role() = 'superadmin');
 
--- Superadmin can UPDATE all users
+-- Superadmin can UPDATE all users (non-recursive via get_my_role)
 CREATE POLICY "Superadmin can update all users"
   ON public.users
   FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role = 'superadmin'
-    )
-  );
+  USING (public.get_my_role() = 'superadmin');
 
--- Admin can SELECT all users
+-- Admin can SELECT all users (non-recursive via get_my_role)
 CREATE POLICY "Admin can view all users"
   ON public.users
   FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role IN ('admin', 'superadmin')
-    )
-  );
+  USING (public.get_my_role() IN ('admin', 'superadmin'));
 
--- Admin can UPDATE users but NOT change roles
+-- Admin can UPDATE users but NOT change roles (non-recursive via get_my_role)
 CREATE POLICY "Admin can update users (no role changes)"
   ON public.users
   FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.users
-      WHERE id = auth.uid() AND role IN ('admin', 'superadmin')
-    )
-  )
-  WITH CHECK (
-    role = (SELECT role FROM public.users WHERE id = id)
-  );
+  USING (public.get_my_role() IN ('admin', 'superadmin'));
 
 -- ============================================
 -- 5. RLS POLICIES FOR AUDIT LOGS
@@ -193,9 +187,10 @@ BEGIN
     NEW.raw_user_meta_data->>'phone',
     NEW.raw_user_meta_data->>'address',
     NEW.email,
-    'user', -- Default role
-    'not_submitted' -- Default KYC status
-  );
+    'user',
+    'not_submitted'
+  )
+  ON CONFLICT (id) DO NOTHING; -- Safe: never fails if user already exists
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

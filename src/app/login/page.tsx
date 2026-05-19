@@ -27,13 +27,27 @@ export default function LoginPage() {
       })
 
       if (error) throw error
+      if (!data.user) throw new Error('Login failed: no user returned')
 
-      // TODO: Send email notification for login
-      // This requires setting up an email service (e.g., Resend, SendGrid)
-      // and creating an Edge Function to send the email
-      console.log('User logged in:', data.user?.email)
-      
-      // Redirect to dashboard
+      // Fallback: ensure user exists in public.users (in case trigger failed)
+      const { data: existingUser } = await supabase()
+        .from('users')
+        .select('id')
+        .eq('id', data.user.id)
+        .single()
+
+      if (!existingUser) {
+        await (supabase() as any).from('users').insert({
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || '',
+          phone: data.user.user_metadata?.phone || '',
+          address: data.user.user_metadata?.address || '',
+          role: 'user',
+          kyc_status: 'not_submitted',
+        })
+      }
+
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Login failed')
