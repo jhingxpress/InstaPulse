@@ -21,7 +21,7 @@ export default function PaymentContent() {
   const packages = [
     { id: '1', name: 'Basic Package', price: 20000 },
     { id: '2', name: 'Standard Package', price: 21000 },
-    { id: '3', name: 'Advance Package', price: 22000 },
+    { id: '3', name: 'Advanced Package', price: 22000 },
     { id: '4', name: 'Enterprise Package', price: 25000 },
   ]
 

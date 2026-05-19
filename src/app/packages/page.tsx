@@ -53,7 +53,7 @@ export default function PackagesPage() {
     },
     {
       id: 3,
-      name: 'Advance Package',
+      name: 'Advanced Package',
       price: 22000,
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
