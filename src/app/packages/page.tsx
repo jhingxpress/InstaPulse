@@ -5,41 +5,27 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
-import { Shield, Check, ArrowRight, AlertTriangle, Camera, Radio } from 'lucide-react'
+import { Shield, Check, ArrowRight, Camera, Radio } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function PackagesPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase().auth.getUser()
-      if (!user) {
-        router.push('/login')
-      } else {
-        setAuthenticated(true)
-      }
-      setLoading(false)
+      setAuthenticated(!!user)
     }
-
     checkAuth()
-  }, [router])
+  }, [])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!authenticated) {
-    return null
+  const handleBuyNow = (pkgId: number) => {
+    if (!authenticated) {
+      router.push('/register')
+    } else {
+      router.push(`/checkout?package=${pkgId}`)
+    }
   }
 
   const packages = [
@@ -153,16 +139,16 @@ export default function PackagesPage() {
                   ))}
                 </ul>
 
-                <Link
-                  href={`/checkout?package=${pkg.id}`}
+                <button
+                  onClick={() => handleBuyNow(pkg.id)}
                   className={`block w-full py-3 rounded-lg font-semibold text-center transition-colors ${
                     pkg.featured
                       ? 'bg-white text-red-600 hover:bg-gray-100'
                       : 'bg-red-600 text-white hover:bg-red-700'
                   }`}
                 >
-                  Buy Now
-                </Link>
+                  {authenticated ? 'Buy Now' : 'Get Started'}
+                </button>
               </motion.div>
             ))}
           </div>
