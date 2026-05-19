@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, FileText, Package, CreditCard, Settings, LogOut, Search, CheckCircle, XCircle, Clock, AlertCircle, MessageSquare } from 'lucide-react'
+import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { isAdmin, getAllProfiles, updateUserRole, type Profile } from '@/lib/profile'
-import type { UserRole } from '@/lib/profile'
+import { isAdmin, getAllProfiles, type Profile } from '@/lib/profile'
+import OrderDetailsModal from '@/components/OrderDetailsModal'
+import SupportPanel from '@/components/SupportPanel'
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -16,7 +16,31 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
   const [profiles, setProfiles] = useState<Profile[]>([])
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null)
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [orderSearch, setOrderSearch] = useState('')
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all')
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [clientOrders, setClientOrders] = useState<any[]>([])
+  const [unreadSupportCount, setUnreadSupportCount] = useState(0)
+  const lastActivityRef = useRef(Date.now())
+
+  const fetchOrders = useCallback(async () => {
+    const { data } = await (supabase() as any)
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setOrders(data)
+  }, [])
+
+  const fetchUnreadSupport = useCallback(async () => {
+    const { data } = await (supabase() as any)
+      .from('support_tickets')
+      .select('unread_admin')
+      .gt('unread_admin', 0)
+    setUnreadSupportCount(data ? data.reduce((sum: number, t: any) => sum + (t.unread_admin || 0), 0) : 0)
+  }, [])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -29,13 +53,53 @@ export default function AdminDashboard() {
       setAuthenticated(true)
       setLoading(false)
 
-      // Fetch all profiles
       const allProfiles = await getAllProfiles()
       setProfiles(allProfiles)
+
+      try {
+        const { data: logs } = await (supabase() as any)
+          .from('audit_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50)
+        if (logs) setAuditLogs(logs)
+      } catch {
+        console.log('Audit logs table may not exist')
+      }
+
+      const { data: allOrders } = await (supabase() as any)
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (allOrders) setOrders(allOrders)
+      await fetchUnreadSupport()
     }
 
     checkAuth()
-  }, [router])
+  }, [router, fetchUnreadSupport])
+
+  // Idle auto-refresh after 3 minutes
+  useEffect(() => {
+    const trackActivity = () => { lastActivityRef.current = Date.now() }
+    window.addEventListener('mousemove', trackActivity)
+    window.addEventListener('keydown', trackActivity)
+    window.addEventListener('click', trackActivity)
+
+    const interval = setInterval(async () => {
+      if (Date.now() - lastActivityRef.current >= 3 * 60 * 1000) {
+        await fetchOrders()
+        await fetchUnreadSupport()
+        lastActivityRef.current = Date.now()
+      }
+    }, 30_000)
+
+    return () => {
+      window.removeEventListener('mousemove', trackActivity)
+      window.removeEventListener('keydown', trackActivity)
+      window.removeEventListener('click', trackActivity)
+      clearInterval(interval)
+    }
+  }, [fetchOrders, fetchUnreadSupport])
 
   if (loading) {
     return (
@@ -48,62 +112,80 @@ export default function AdminDashboard() {
     )
   }
 
-  if (!authenticated) {
-    return null
-  }
-
-  const tabs = [
-    { id: 'overview', name: 'Overview', icon: Shield },
-    { id: 'users', name: 'Users', icon: Users },
-    { id: 'kyc', name: 'KYC Approvals', icon: FileText },
-    { id: 'support', name: 'Support Messages', icon: MessageSquare },
-    { id: 'orders', name: 'Orders', icon: Package },
-    { id: 'payments', name: 'Payments', icon: CreditCard },
-    { id: 'settings', name: 'Settings', icon: Settings },
-  ]
+  if (!authenticated) return null
 
   const stats = {
     totalUsers: profiles.length,
     totalAdmins: profiles.filter(p => p.role === 'admin').length,
     totalSuperadmins: profiles.filter(p => p.role === 'superadmin').length,
     totalRegularUsers: profiles.filter(p => p.role === 'user').length,
+    totalAuditLogs: auditLogs.length,
   }
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    const success = await updateUserRole(userId, newRole)
-    if (success) {
-      // Refresh profiles
-      const allProfiles = await getAllProfiles()
-      setProfiles(allProfiles)
-    } else {
-      alert('Failed to update role')
-    }
+  const orderStats = {
+    total:        orders.length,
+    pending:      orders.filter(o => o.status === 'pending').length,
+    paid:         orders.filter(o => o.status === 'paid').length,
+    acknowledged: orders.filter(o => o.status === 'acknowledged').length,
+    completed:    orders.filter(o => o.status === 'completed').length,
+    cancelled:    orders.filter(o => o.status === 'cancelled').length,
   }
 
-  const filteredUsers = profiles.filter(profile =>
-    profile.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const pendingOrdersCount = orderStats.pending
+
+  const filteredUsers = profiles.filter(p =>
+    p.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.email?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleKYCAction = (id: number, action: 'approve' | 'reject') => {
-    console.log(`KYC ${action} for request ${id}`)
-    // TODO: Implement KYC approval/rejection
+  const filteredOrders = orders.filter(o => {
+    const matchSearch =
+      (o.order_number || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
+      (o.package_name || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
+      (o.transaction_reference || '').toLowerCase().includes(orderSearch.toLowerCase())
+    const matchStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter
+    return matchSearch && matchStatus
+  })
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending:      'bg-yellow-100 text-yellow-800',
+    paid:         'bg-blue-100 text-blue-800',
+    acknowledged: 'bg-purple-100 text-purple-800',
+    completed:    'bg-green-100 text-green-800',
+    cancelled:    'bg-red-100 text-red-800',
   }
 
-  const handleUserAction = (userId: number, action: 'ban' | 'unban') => {
-    console.log(`User ${action} for user ${userId}`)
-    // TODO: Implement user ban/unban
+  const ROLE_COLORS: Record<string, string> = {
+    superadmin: 'bg-red-900 text-red-300',
+    admin:      'bg-yellow-900 text-yellow-300',
+    user:       'bg-gray-700 text-gray-300',
   }
 
-  const handleSupportResponse = (messageId: number, response: string) => {
-    console.log(`Response to message ${messageId}: ${response}`)
-    // TODO: Implement support response
+  const openClientInfo = async (userId: string) => {
+    setSelectedClientId(userId)
+    const { data } = await (supabase() as any)
+      .from('orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    setClientOrders(data || [])
   }
+
+  const selectedClientProfile = profiles.find(p => p.id === selectedClientId)
+
+  const tabs = [
+    { id: 'overview', name: 'System Overview', icon: Shield,        badge: 0 },
+    { id: 'orders',   name: 'Orders',          icon: Package,       badge: pendingOrdersCount },
+    { id: 'support',  name: 'Support Inbox',   icon: MessageSquare, badge: unreadSupportCount },
+    { id: 'users',    name: 'User Management', icon: Users,         badge: 0 },
+    { id: 'audit',    name: 'Audit Logs',      icon: FileText,      badge: 0 },
+    { id: 'settings', name: 'Settings',        icon: Settings,      badge: 0 },
+  ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-900">
       {/* Header */}
-      <header className="bg-navy-900 text-white">
+      <header className="bg-navy-950 text-white border-b border-navy-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -112,14 +194,14 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                  <Shield className="h-5 w-5" />
+                <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-white" />
                 </div>
-                <span className="hidden sm:inline">Admin</span>
+                <span className="hidden sm:inline text-gray-300">Admin</span>
               </div>
-              <Link href="/login" className="text-gray-300 hover:text-white">
+              <button onClick={async () => { await supabase().auth.signOut(); router.push('/login') }} className="text-gray-300 hover:text-white">
                 <LogOut className="h-5 w-5" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -128,200 +210,371 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar */}
-          <motion.aside
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="lg:w-64 flex-shrink-0"
-          >
-            <nav className="bg-white rounded-xl shadow-lg p-4 space-y-2">
+          <motion.aside initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="lg:w-64 flex-shrink-0">
+            <nav className="bg-navy-900 rounded-xl shadow-lg p-4 space-y-2">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-red-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
+                  onClick={() => { setActiveTab(tab.id); if (tab.id === 'support') fetchUnreadSupport() }}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+                    activeTab === tab.id ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-navy-800'
                   }`}
                 >
-                  <tab.icon className="h-5 w-5" />
-                  <span>{tab.name}</span>
+                  <div className="flex items-center space-x-3">
+                    <tab.icon className="h-5 w-5" />
+                    <span>{tab.name}</span>
+                  </div>
+                  {tab.badge > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
           </motion.aside>
 
           {/* Main Content */}
-          <motion.main
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex-1"
-          >
-            {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-navy-900">Admin Dashboard</h2>
+          <motion.main initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex-1">
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Users className="h-8 w-8 text-blue-600" />
-                      <span className="text-gray-600">Total Users</span>
-                    </div>
-                    <p className="text-3xl font-bold text-navy-900">{stats.totalUsers}</p>
+            {/* ORDER DETAILS MODAL */}
+            {selectedOrder && (
+              <OrderDetailsModal
+                order={selectedOrder}
+                onClose={() => setSelectedOrder(null)}
+                onStatusUpdated={(updated) => {
+                  setOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
+                  setSelectedOrder(updated)
+                }}
+                onViewClient={(uid) => { setSelectedOrder(null); openClientInfo(uid) }}
+              />
+            )}
+
+            {/* CLIENT INFO MODAL */}
+            {selectedClientId && selectedClientProfile && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/60" onClick={() => { setSelectedClientId(null); setClientOrders([]) }} />
+                <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto z-10">
+                  <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-2xl">
+                    <h2 className="text-lg font-bold text-gray-900">Client Information</h2>
+                    <button onClick={() => { setSelectedClientId(null); setClientOrders([]) }} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
                   </div>
-
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Shield className="h-8 w-8 text-yellow-600" />
-                      <span className="text-gray-600">Admins</span>
+                  <div className="p-6 space-y-4">
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Full Name</span><span className="font-semibold">{selectedClientProfile.full_name || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Email</span><span className="font-semibold">{selectedClientProfile.email || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Phone</span><span className="font-semibold">{(selectedClientProfile as any).phone || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Address</span><span className="font-semibold">{(selectedClientProfile as any).address || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Role</span><span className="font-semibold capitalize">{selectedClientProfile.role}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Joined</span><span className="font-semibold">{new Date(selectedClientProfile.created_at).toLocaleDateString()}</span></div>
                     </div>
-                    <p className="text-3xl font-bold text-navy-900">{stats.totalAdmins}</p>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Shield className="h-8 w-8 text-red-600" />
-                      <span className="text-gray-600">Superadmins</span>
-                    </div>
-                    <p className="text-3xl font-bold text-navy-900">{stats.totalSuperadmins}</p>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Users className="h-8 w-8 text-green-600" />
-                      <span className="text-gray-600">Regular Users</span>
-                    </div>
-                    <p className="text-3xl font-bold text-navy-900">{stats.totalRegularUsers}</p>
-                  </div>
-                </div>
-
-                {/* Recent Activity */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-navy-900 mb-4">Recent Users</h3>
-                  <div className="space-y-4">
-                    {profiles.slice(0, 5).map((profile) => (
-                      <div key={profile.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-semibold text-navy-900">{profile.full_name || 'Unknown'}</p>
-                          <p className="text-sm text-gray-600">{profile.email}</p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            profile.role === 'superadmin' ? 'bg-red-100 text-red-800' :
-                            profile.role === 'admin' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {profile.role}
-                          </span>
-                        </div>
+                    <h3 className="font-bold text-gray-900">Order History</h3>
+                    {clientOrders.length === 0 ? (
+                      <p className="text-sm text-gray-500">No orders yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {clientOrders.map((o: any) => (
+                          <div key={o.id} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                            <div>
+                              <p className="text-sm font-semibold">{o.package_name}</p>
+                              <p className="text-xs text-gray-500">{o.order_number} · {new Date(o.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[o.status] || 'bg-gray-100 text-gray-800'}`}>{o.status}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-white">System Overview</h2>
+
+                {/* User Stats */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Users</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { label: 'Total Users',   value: stats.totalUsers,        icon: Users,   color: 'text-blue-400' },
+                      { label: 'Regular Users', value: stats.totalRegularUsers, icon: Users,   color: 'text-green-400' },
+                      { label: 'Admins',        value: stats.totalAdmins,       icon: Shield,  color: 'text-yellow-400' },
+                      { label: 'Superadmins',   value: stats.totalSuperadmins,  icon: Lock,    color: 'text-red-400' },
+                    ].map(card => (
+                      <div key={card.label} className="bg-navy-900 rounded-xl p-5 border border-navy-800">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <card.icon className={`h-5 w-5 ${card.color}`} />
+                          <span className="text-xs text-gray-400">{card.label}</span>
+                        </div>
+                        <p className={`text-3xl font-bold ${card.color}`}>{card.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quick-look */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Orders',    value: orderStats.total,       icon: Package,       color: 'text-orange-400' },
+                    { label: 'Pending Orders',  value: orderStats.pending,     icon: Package,       color: 'text-yellow-400' },
+                    { label: 'Audit Logs',      value: stats.totalAuditLogs,   icon: Database,      color: 'text-purple-400' },
+                    { label: 'Unread Support',  value: unreadSupportCount,     icon: MessageSquare, color: 'text-blue-400' },
+                  ].map(card => (
+                    <div key={card.label} className="bg-navy-900 rounded-xl p-5 border border-navy-800">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <card.icon className={`h-5 w-5 ${card.color}`} />
+                        <span className="text-xs text-gray-400">{card.label}</span>
+                      </div>
+                      <p className={`text-3xl font-bold ${card.color}`}>{card.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-yellow-900/20 border border-yellow-800 rounded-xl p-6">
+                  <div className="flex items-start space-x-3">
+                    <AlertTriangle className="h-6 w-6 text-yellow-500 flex-shrink-0 mt-1" />
+                    <div>
+                      <h3 className="text-lg font-bold text-yellow-500 mb-2">Admin Notice</h3>
+                      <p className="text-gray-300">
+                        You have admin access. Role changes and audit log deletion require superadmin privileges.
+                        All your actions are recorded in the audit logs.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ORDERS TAB */}
+            {activeTab === 'orders' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Orders Dashboard</h2>
+                  <button onClick={fetchOrders} className="text-gray-400 hover:text-white text-sm px-3 py-1 border border-navy-700 rounded-lg">↻ Refresh</button>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {[
+                    { label: 'Total',        value: orderStats.total,        color: 'text-white' },
+                    { label: 'Pending',      value: orderStats.pending,      color: 'text-yellow-400' },
+                    { label: 'Paid',         value: orderStats.paid,         color: 'text-blue-400' },
+                    { label: 'Acknowledged', value: orderStats.acknowledged, color: 'text-purple-400' },
+                    { label: 'Completed',    value: orderStats.completed,    color: 'text-green-400' },
+                    { label: 'Cancelled',    value: orderStats.cancelled,    color: 'text-red-400' },
+                  ].map(card => (
+                    <div key={card.label} className="bg-navy-900 border border-navy-800 rounded-xl p-4">
+                      <p className="text-xs text-gray-400 mb-1">{card.label}</p>
+                      <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search order no., package, reference..."
+                      value={orderSearch}
+                      onChange={e => setOrderSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-navy-900 border border-navy-800 rounded-lg text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-red-600 text-sm"
+                    />
+                  </div>
+                  <select
+                    value={orderStatusFilter}
+                    onChange={e => setOrderStatusFilter(e.target.value)}
+                    className="px-3 py-2 bg-navy-900 border border-navy-800 rounded-lg text-white outline-none focus:ring-2 focus:ring-red-600 text-sm"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                {/* Orders Table */}
+                <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-navy-950">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Order No.</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Package</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Payment</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Reference</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-navy-800">
+                        {filteredOrders.length === 0 ? (
+                          <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No orders found.</td></tr>
+                        ) : filteredOrders.map(order => (
+                          <tr key={order.id} className="hover:bg-navy-800 transition-colors">
+                            <td className="px-4 py-3 text-xs font-mono text-gray-300">{order.order_number}</td>
+                            <td className="px-4 py-3 text-sm text-white">{order.package_name}</td>
+                            <td className="px-4 py-3 text-sm text-white">₱{Number(order.total_amount).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm text-gray-300 capitalize">{order.payment_method?.replace('_', ' ') || '—'}</td>
+                            <td className="px-4 py-3 text-xs font-mono text-gray-400">{order.transaction_reference || '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-800'}`}>{order.status}</span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString()}</td>
+                            <td className="px-4 py-3">
+                              <button onClick={() => setSelectedOrder(order)} className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-xs">
+                                <Eye className="h-3.5 w-3.5" /><span>View</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUPPORT TAB */}
+            {activeTab === 'support' && (
+              <div className="bg-navy-900 border border-navy-800 rounded-xl p-6">
+                <SupportPanel isAdmin={true} darkMode={true} />
+              </div>
+            )}
+
+            {/* USER MANAGEMENT TAB */}
             {activeTab === 'users' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-navy-900">User Management</h2>
+                  <h2 className="text-2xl font-bold text-white">User Management</h2>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="text"
                       placeholder="Search users..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
+                      onChange={e => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-navy-900 border border-navy-800 rounded-lg focus:ring-2 focus:ring-red-600 outline-none text-white placeholder-gray-400"
                     />
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="bg-navy-900 rounded-xl shadow-lg overflow-hidden border border-navy-800">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-navy-950">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Role</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Name</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Email</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Role</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Joined</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-navy-800">
                       {filteredUsers.map((profile) => (
-                        <tr key={profile.id}>
-                          <td className="px-6 py-4 text-sm text-gray-900">{profile.full_name || 'Unknown'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{profile.email || 'Unknown'}</td>
+                        <tr key={profile.id} className="hover:bg-navy-800 transition-colors">
+                          <td className="px-6 py-4 text-sm text-white">{profile.full_name || 'Unknown'}</td>
+                          <td className="px-6 py-4 text-sm text-white">{profile.email || 'Unknown'}</td>
                           <td className="px-6 py-4">
-                            <select
-                              value={profile.role}
-                              onChange={(e) => handleRoleChange(profile.id, e.target.value as UserRole)}
-                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none text-sm"
-                              disabled={profile.role === 'superadmin'} // Admin cannot change superadmin roles
-                            >
-                              <option value="user">User</option>
-                              <option value="admin">Admin</option>
-                              <option value="superadmin" disabled>Superadmin</option>
-                            </select>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${ROLE_COLORS[profile.role] || 'bg-gray-700 text-gray-300'}`}>
+                              {profile.role}
+                            </span>
                           </td>
-                          <td className="px-6 py-4">
-                            <button
-                              onClick={() => router.push(`/admin/users/${profile.id}`)}
-                              className="text-red-600 hover:text-red-700 text-sm font-medium"
-                            >
-                              View Details
-                            </button>
-                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-400">{new Date(profile.created_at).toLocaleDateString()}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                <p className="text-xs text-gray-500 flex items-center space-x-1">
+                  <Lock className="h-3.5 w-3.5" />
+                  <span>Role changes require superadmin privileges.</span>
+                </p>
               </div>
             )}
 
-            {activeTab === 'kyc' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-navy-900">KYC Approvals</h2>
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <p className="text-gray-600">KYC approval system coming soon...</p>
+            {/* AUDIT LOGS TAB — view only */}
+            {activeTab === 'audit' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Audit Logs</h2>
+                  <span className="text-xs text-gray-400">{auditLogs.length} total logs</span>
                 </div>
-              </div>
-            )}
 
-            {activeTab === 'support' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-navy-900">Support Messages</h2>
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <p className="text-gray-600">Support message system coming soon...</p>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'orders' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-navy-900">Order Management</h2>
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <p className="text-gray-600">Order management system coming soon...</p>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'payments' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-navy-900">Payment Monitoring</h2>
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <p className="text-gray-600">Payment monitoring dashboard coming soon...</p>
-                </div>
+                {auditLogs.length === 0 ? (
+                  <div className="bg-navy-900 border border-navy-800 rounded-xl p-8 text-center">
+                    <Database className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500">No audit logs yet.</p>
+                  </div>
+                ) : (
+                  <div className="bg-navy-900 rounded-xl shadow-lg overflow-hidden border border-navy-800">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-navy-950">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Actor</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Role</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Action</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Target</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Details</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Timestamp</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-navy-800">
+                          {auditLogs.map((log) => {
+                            const actorName = log.new_data?.actor_name || log.user_id || 'System'
+                            const actorRole = log.new_data?.actor_role || '—'
+                            const details = log.new_data
+                              ? Object.entries(log.new_data)
+                                  .filter(([k]) => !['actor_name', 'actor_email', 'actor_role'].includes(k))
+                                  .map(([k, v]) => `${k}: ${v}`).join(' · ')
+                              : '—'
+                            return (
+                              <tr key={log.id} className="hover:bg-navy-800 transition-colors">
+                                <td className="px-4 py-3">
+                                  <p className="text-sm text-white font-medium">{actorName}</p>
+                                  {log.new_data?.actor_email && <p className="text-xs text-gray-500">{log.new_data.actor_email}</p>}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                                    actorRole === 'superadmin' ? 'bg-red-900 text-red-300' :
+                                    actorRole === 'admin' ? 'bg-yellow-900 text-yellow-300' :
+                                    'bg-gray-700 text-gray-300'
+                                  }`}>{actorRole}</span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="text-xs font-mono bg-navy-800 text-blue-300 px-2 py-0.5 rounded">{log.action}</span>
+                                </td>
+                                <td className="px-4 py-3 text-xs text-gray-400">{log.target_table}/{log.target_id || '—'}</td>
+                                <td className="px-4 py-3 text-xs text-gray-400 max-w-[200px] truncate" title={details}>{details || '—'}</td>
+                                <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 flex items-center space-x-1">
+                  <Lock className="h-3.5 w-3.5" />
+                  <span>Deleting audit logs requires superadmin privileges.</span>
+                </p>
               </div>
             )}
 
             {activeTab === 'settings' && (
               <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-navy-900">Admin Settings</h2>
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <p className="text-gray-600">Admin settings panel coming soon...</p>
+                <h2 className="text-2xl font-bold text-white">Settings</h2>
+                <div className="bg-navy-900 rounded-xl shadow-lg p-6 border border-navy-800">
+                  <p className="text-gray-400">Admin settings panel coming soon...</p>
                 </div>
               </div>
             )}
