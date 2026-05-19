@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, FileText, Settings, LogOut, Search, CheckCircle, XCircle, AlertTriangle, Database, Lock } from 'lucide-react'
+import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { isSuperAdmin, getAllProfiles, updateUserRole, type Profile, type UserRole } from '@/lib/profile'
+import OrderDetailsModal from '@/components/OrderDetailsModal'
+import SupportPanel from '@/components/SupportPanel'
 
 export default function SuperAdminDashboard() {
   const router = useRouter()
@@ -16,6 +17,20 @@ export default function SuperAdminDashboard() {
   const [authenticated, setAuthenticated] = useState(false)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [orderSearch, setOrderSearch] = useState('')
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all')
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [clientOrders, setClientOrders] = useState<any[]>([])
+
+  const fetchOrders = useCallback(async () => {
+    const { data } = await (supabase() as any)
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setOrders(data)
+  }, [])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -28,24 +43,26 @@ export default function SuperAdminDashboard() {
       setAuthenticated(true)
       setLoading(false)
 
-      // Fetch all profiles
       const allProfiles = await getAllProfiles()
       setProfiles(allProfiles)
 
-      // Fetch audit logs
       try {
         const { data: logs } = await (supabase() as any)
           .from('audit_logs')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(50)
-        
-        if (logs) {
-          setAuditLogs(logs)
-        }
+        if (logs) setAuditLogs(logs)
       } catch (error) {
         console.log('Audit logs table may not exist')
       }
+
+      // Fetch orders with user info from profiles
+      const { data: allOrders } = await (supabase() as any)
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (allOrders) setOrders(allOrders)
     }
 
     checkAuth()
@@ -107,10 +124,50 @@ export default function SuperAdminDashboard() {
 
   const tabs = [
     { id: 'overview', name: 'System Overview', icon: Shield },
+    { id: 'orders', name: 'Orders', icon: Package },
+    { id: 'support', name: 'Support Inbox', icon: MessageSquare },
     { id: 'users', name: 'User Management', icon: Users },
     { id: 'audit', name: 'Audit Logs', icon: FileText },
     { id: 'settings', name: 'System Settings', icon: Settings },
   ]
+
+  const STATUS_COLORS: Record<string, string> = {
+    pending:      'bg-yellow-100 text-yellow-800',
+    paid:         'bg-blue-100 text-blue-800',
+    acknowledged: 'bg-purple-100 text-purple-800',
+    completed:    'bg-green-100 text-green-800',
+    cancelled:    'bg-red-100 text-red-800',
+  }
+
+  const filteredOrders = orders.filter(o => {
+    const matchSearch =
+      (o.order_number || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
+      (o.package_name || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
+      (o.transaction_reference || '').toLowerCase().includes(orderSearch.toLowerCase())
+    const matchStatus = orderStatusFilter === 'all' || o.status === orderStatusFilter
+    return matchSearch && matchStatus
+  })
+
+  const orderStats = {
+    total:       orders.length,
+    pending:     orders.filter(o => o.status === 'pending').length,
+    paid:        orders.filter(o => o.status === 'paid').length,
+    acknowledged:orders.filter(o => o.status === 'acknowledged').length,
+    completed:   orders.filter(o => o.status === 'completed').length,
+    cancelled:   orders.filter(o => o.status === 'cancelled').length,
+  }
+
+  const openClientInfo = async (userId: string) => {
+    setSelectedClientId(userId)
+    const { data } = await (supabase() as any)
+      .from('orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    setClientOrders(data || [])
+  }
+
+  const selectedClientProfile = profiles.find(p => p.id === selectedClientId)
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -129,9 +186,9 @@ export default function SuperAdminDashboard() {
                 </div>
                 <span className="hidden sm:inline">Superadmin</span>
               </div>
-              <Link href="/login" className="text-gray-300 hover:text-white">
+              <button onClick={async () => { await supabase().auth.signOut(); router.push('/login') }} className="text-gray-300 hover:text-white">
                 <LogOut className="h-5 w-5" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -169,6 +226,58 @@ export default function SuperAdminDashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="flex-1"
           >
+            {/* ORDER DETAILS MODAL */}
+            {selectedOrder && (
+              <OrderDetailsModal
+                order={selectedOrder}
+                onClose={() => setSelectedOrder(null)}
+                onStatusUpdated={(updated) => {
+                  setOrders(prev => prev.map(o => o.id === updated.id ? updated : o))
+                  setSelectedOrder(updated)
+                }}
+                onViewClient={(uid) => { setSelectedOrder(null); openClientInfo(uid) }}
+              />
+            )}
+
+            {/* CLIENT INFO MODAL */}
+            {selectedClientId && selectedClientProfile && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/60" onClick={() => { setSelectedClientId(null); setClientOrders([]) }} />
+                <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto z-10">
+                  <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-2xl">
+                    <h2 className="text-lg font-bold text-gray-900">Client Information</h2>
+                    <button onClick={() => { setSelectedClientId(null); setClientOrders([]) }} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Full Name</span><span className="font-semibold">{selectedClientProfile.full_name || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Email</span><span className="font-semibold">{selectedClientProfile.email || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Phone</span><span className="font-semibold">{(selectedClientProfile as any).phone || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Address</span><span className="font-semibold">{(selectedClientProfile as any).address || '—'}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Role</span><span className="font-semibold capitalize">{selectedClientProfile.role}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-gray-500">Joined</span><span className="font-semibold">{new Date(selectedClientProfile.created_at).toLocaleDateString()}</span></div>
+                    </div>
+                    <h3 className="font-bold text-gray-900">Order History</h3>
+                    {clientOrders.length === 0 ? (
+                      <p className="text-sm text-gray-500">No orders yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {clientOrders.map((o: any) => (
+                          <div key={o.id} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                            <div>
+                              <p className="text-sm font-semibold">{o.package_name}</p>
+                              <p className="text-xs text-gray-500">{o.order_number} · {new Date(o.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[o.status] || 'bg-gray-100 text-gray-800'}`}>{o.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-white">System Overview</h2>
@@ -229,6 +338,108 @@ export default function SuperAdminDashboard() {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ORDERS TAB */}
+            {activeTab === 'orders' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Orders Dashboard</h2>
+                  <button onClick={fetchOrders} className="text-gray-400 hover:text-white text-sm px-3 py-1 border border-navy-700 rounded-lg">↻ Refresh</button>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {[
+                    { label: 'Total',       value: orderStats.total,        color: 'text-white' },
+                    { label: 'Pending',      value: orderStats.pending,      color: 'text-yellow-400' },
+                    { label: 'Paid',         value: orderStats.paid,         color: 'text-blue-400' },
+                    { label: 'Acknowledged', value: orderStats.acknowledged, color: 'text-purple-400' },
+                    { label: 'Completed',    value: orderStats.completed,    color: 'text-green-400' },
+                    { label: 'Cancelled',    value: orderStats.cancelled,    color: 'text-red-400' },
+                  ].map(card => (
+                    <div key={card.label} className="bg-navy-900 border border-navy-800 rounded-xl p-4">
+                      <p className="text-xs text-gray-400 mb-1">{card.label}</p>
+                      <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search order no., package, reference..."
+                      value={orderSearch}
+                      onChange={e => setOrderSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-navy-900 border border-navy-800 rounded-lg text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-red-600 text-sm"
+                    />
+                  </div>
+                  <select
+                    value={orderStatusFilter}
+                    onChange={e => setOrderStatusFilter(e.target.value)}
+                    className="px-3 py-2 bg-navy-900 border border-navy-800 rounded-lg text-white outline-none focus:ring-2 focus:ring-red-600 text-sm"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                {/* Orders Table */}
+                <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-navy-950">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Order No.</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Package</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Payment</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Reference</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-navy-800">
+                        {filteredOrders.length === 0 ? (
+                          <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-500">No orders found.</td></tr>
+                        ) : filteredOrders.map(order => (
+                          <tr key={order.id} className="hover:bg-navy-800 transition-colors">
+                            <td className="px-4 py-3 text-xs font-mono text-gray-300">{order.order_number}</td>
+                            <td className="px-4 py-3 text-sm text-white">{order.package_name}</td>
+                            <td className="px-4 py-3 text-sm text-white">₱{Number(order.total_amount).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm text-gray-300 capitalize">{order.payment_method?.replace('_',' ') || '—'}</td>
+                            <td className="px-4 py-3 text-xs font-mono text-gray-400">{order.transaction_reference || '—'}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-800'}`}>{order.status}</span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString()}</td>
+                            <td className="px-4 py-3">
+                              <button onClick={() => setSelectedOrder(order)} className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 text-xs">
+                                <Eye className="h-3.5 w-3.5" /><span>View</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUPPORT INBOX TAB */}
+            {activeTab === 'support' && (
+              <div className="bg-navy-900 border border-navy-800 rounded-xl p-6">
+                <SupportPanel isAdmin={true} darkMode={true} />
               </div>
             )}
 

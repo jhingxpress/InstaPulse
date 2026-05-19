@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, Clock, CheckCircle, MessageSquare } from 'lucide-react'
+import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import PackageModal from '@/components/PackageModal'
 import PaymentModal from '@/components/PaymentModal'
+import SupportPanel from '@/components/SupportPanel'
 
 export default function ClientDashboard() {
   const router = useRouter()
@@ -23,7 +24,6 @@ export default function ClientDashboard() {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: Shield },
     { id: 'orders', name: 'Orders', icon: Package },
-    { id: 'kyc', name: 'KYC Status', icon: FileText },
     { id: 'support', name: 'Support', icon: MessageSquare },
     { id: 'settings', name: 'Settings', icon: Settings },
   ]
@@ -324,66 +324,10 @@ export default function ClientDashboard() {
                 </div>
               )}
 
-              {/* KYC TAB */}
-              {activeTab === 'kyc' && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-navy-900">KYC Verification Status</h2>
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <div className="flex items-center space-x-4 mb-6">
-                      <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full">
-                        <Clock className="h-8 w-8 text-yellow-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-navy-900">Pending Review</h3>
-                        <p className="text-gray-600">Your documents are being reviewed by our team</p>
-                      </div>
-                    </div>
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <p className="text-sm text-yellow-800">
-                        <strong>Expected Timeline:</strong> 24-48 hours for verification completion.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* SUPPORT TAB */}
               {activeTab === 'support' && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-navy-900">Support Messages</h2>
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <h3 className="text-lg font-bold text-navy-900 mb-4">Send a Support Message</h3>
-                    <form className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-                        <input
-                          type="text"
-                          placeholder="Brief description of your issue"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                        <textarea
-                          placeholder="Describe your issue in detail..."
-                          rows={5}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none resize-none"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
-                      >
-                        Send Message
-                      </button>
-                    </form>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <h3 className="text-lg font-bold text-navy-900 mb-4">Your Messages</h3>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-sm text-gray-600">No support messages yet</p>
-                    </div>
-                  </div>
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <SupportPanel isAdmin={false} darkMode={false} />
                 </div>
               )}
 
