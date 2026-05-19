@@ -39,8 +39,10 @@ ALTER TABLE public.kyc_documents
 
 -- ============================================================
 -- 4. RPC: delete_user_as_superadmin(target_user_id)
---    SECURITY DEFINER → runs as postgres, can delete auth.users
---    Guards: only superadmin callers are allowed
+--    SECURITY DEFINER → bypasses RLS for deletion
+--    Deletes public.users profile (cascades to orders, payments, etc.)
+--    Note: auth.users identity remains but is orphaned (no profile = no app access)
+--    To fully delete auth user, use Supabase Dashboard or Edge Function with service role
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.delete_user_as_superadmin(target_user_id uuid)
 RETURNS void
@@ -61,11 +63,8 @@ BEGIN
     RAISE EXCEPTION 'You cannot delete your own account';
   END IF;
 
-  -- Delete public profile first (cascades to orders, payments, kyc_documents, support_tickets, etc.)
+  -- Delete public profile (cascades to orders, payments, kyc_documents, support_tickets, etc.)
   DELETE FROM public.users WHERE id = target_user_id;
-
-  -- Delete auth identity (requires postgres/superuser via SECURITY DEFINER)
-  DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
 
