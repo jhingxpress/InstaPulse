@@ -407,7 +407,7 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-4">Contact</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>support@instapulse.com</li>
+                <li>admin@instapulse.site</li>
                 <li>+63 912 345 6789</li>
               </ul>
             </div>

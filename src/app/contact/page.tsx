@@ -196,8 +196,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-navy-900 mb-1">Email</h3>
-                      <p className="text-gray-600">support@instapulse.com</p>
-                      <p className="text-gray-600">info@instapulse.com</p>
+                      <p className="text-gray-600">admin@instapulse.site</p>
                     </div>
                   </div>
 
@@ -316,7 +315,7 @@ export default function ContactPage() {
             <div>
               <h3 className="font-semibold mb-4">Contact</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>support@instapulse.com</li>
+                <li>admin@instapulse.site</li>
                 <li>+63 912 345 6789</li>
               </ul>
             </div>

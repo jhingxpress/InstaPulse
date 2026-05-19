@@ -191,7 +191,7 @@ This project is proprietary software. All rights reserved.
 
 ## Support
 
-For support, contact support@instapulse.com or visit the contact page.
+For support, contact admin@instapulse.site or visit the contact page.
 
 ---
 
