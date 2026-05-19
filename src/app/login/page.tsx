@@ -49,7 +49,20 @@ export default function LoginPage() {
         })
       }
 
-      router.push('/dashboard')
+      // Role-based redirect
+      const { data: profile } = await (supabase() as any)
+        .from('users')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profile?.role === 'superadmin') {
+        router.push('/superadmin')
+      } else if (profile?.role === 'admin') {
+        router.push('/admin')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {
