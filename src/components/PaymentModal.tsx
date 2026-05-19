@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, CreditCard, CheckCircle, Loader2, ArrowLeft, Smartphone, Building2, Banknote } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 
 interface PackageData {
   id: string
@@ -30,6 +31,7 @@ const PAYMENT_METHODS = [
 export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState('')
   const [reference, setReference] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -37,6 +39,7 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
   const handleSubmit = async () => {
     if (!selectedMethod) { setError('Please select a payment method'); return }
     if (selectedMethod !== 'cash' && !reference.trim()) { setError('Please enter your transaction reference'); return }
+    if (!agreedToTerms) { setError('Please agree to the Terms and Conditions and Privacy Policy'); return }
     if (!pkg) return
 
     setError('')
@@ -82,6 +85,7 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
         setSuccess(false)
         setSelectedMethod('')
         setReference('')
+        setAgreedToTerms(false)
       }, 2000)
     } catch (err: any) {
       setError(err.message || 'Failed to place order')
@@ -193,6 +197,26 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
                     </div>
                   )}
 
+                  {/* Terms and Conditions Checkbox */}
+                  <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      className="mt-1 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-600"
+                    />
+                    <span className="text-sm text-gray-600">
+                      I have read and agree to the{' '}
+                      <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-700 underline">
+                        Terms and Conditions
+                      </Link>
+                      {' '}and{' '}
+                      <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-700 underline">
+                        Privacy Policy
+                      </Link>
+                    </span>
+                  </label>
+
                   {/* Error */}
                   {error && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
@@ -203,7 +227,7 @@ export default function PaymentModal({ open, pkg, onClose, onBack, onSuccess }: 
                   {/* Submit */}
                   <button
                     onClick={handleSubmit}
-                    disabled={loading || !selectedMethod}
+                    disabled={loading || !selectedMethod || !agreedToTerms}
                     className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                   >
                     {loading ? (
