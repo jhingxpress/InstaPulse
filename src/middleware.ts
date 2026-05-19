@@ -26,7 +26,7 @@ export async function middleware(req: NextRequest) {
     
     if (user) {
       const { data: profile } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('role')
         .eq('id', user.id)
         .single()
@@ -43,7 +43,7 @@ export async function middleware(req: NextRequest) {
     
     if (user) {
       const { data: profile } = await (supabase as any)
-        .from('profiles')
+        .from('users')
         .select('role')
         .eq('id', user.id)
         .single()

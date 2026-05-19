@@ -33,14 +33,18 @@ export default function SuperAdminDashboard() {
       setProfiles(allProfiles)
 
       // Fetch audit logs
-      const { data: logs } = await (supabase() as any)
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50)
-      
-      if (logs) {
-        setAuditLogs(logs)
+      try {
+        const { data: logs } = await (supabase() as any)
+          .from('audit_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50)
+        
+        if (logs) {
+          setAuditLogs(logs)
+        }
+      } catch (error) {
+        console.log('Audit logs table may not exist')
       }
     }
 

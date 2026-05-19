@@ -1,35 +1,30 @@
 -- Production-Ready RBAC System for Supabase
 -- This script sets up Role-Based Access Control with audit logging
+-- Works with existing users table (not profiles)
 
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================
--- 1. PROFILES TABLE (with role support)
+-- 1. UPDATE EXISTING USERS TABLE FOR RBAC
 -- ============================================
 
--- Add role column to existing profiles table if it doesn't exist
+-- Update role column to support new roles (user, admin, superadmin)
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'profiles' 
-        AND column_name = 'role'
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'users' 
+        AND table_schema = 'public'
     ) THEN
-        ALTER TABLE public.profiles ADD COLUMN role TEXT DEFAULT 'user';
-        ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('user', 'admin', 'superadmin'));
-    END IF;
-END $$;
-
--- Add updated_at column if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'profiles' 
-        AND column_name = 'updated_at'
-    ) THEN
-        ALTER TABLE public.profiles ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+        -- Drop existing role constraint if it exists
+        ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_role_check;
+        
+        -- Add new role constraint with updated roles
+        ALTER TABLE public.users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin', 'superadmin'));
+        
+        -- Update existing 'client' roles to 'user'
+        UPDATE public.users SET role = 'user' WHERE role = 'client';
     END IF;
 END $$;
 
@@ -65,7 +60,7 @@ END $$;
 -- 3. ENABLE ROW LEVEL SECURITY
 -- ============================================
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
 -- Only enable RLS on audit_logs if table exists
 DO $$
@@ -80,66 +75,71 @@ BEGIN
 END $$;
 
 -- ============================================
--- 4. RLS POLICIES FOR PROFILES
+-- 4. RLS POLICIES FOR USERS
 -- ============================================
+
+-- Drop existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
+DROP POLICY IF EXISTS "Admins can view all users" ON public.users;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 
 -- Users can SELECT only their own profile
 CREATE POLICY "Users can view own profile"
-  ON public.profiles
+  ON public.users
   FOR SELECT
   USING (auth.uid() = id);
 
 -- Users can UPDATE only their own profile
 CREATE POLICY "Users can update own profile"
-  ON public.profiles
+  ON public.users
   FOR UPDATE
   USING (auth.uid() = id);
 
--- Superadmin can SELECT all profiles
-CREATE POLICY "Superadmin can view all profiles"
-  ON public.profiles
+-- Superadmin can SELECT all users
+CREATE POLICY "Superadmin can view all users"
+  ON public.users
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM public.profiles
+      SELECT 1 FROM public.users
       WHERE id = auth.uid() AND role = 'superadmin'
     )
   );
 
--- Superadmin can UPDATE all profiles
-CREATE POLICY "Superadmin can update all profiles"
-  ON public.profiles
+-- Superadmin can UPDATE all users
+CREATE POLICY "Superadmin can update all users"
+  ON public.users
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM public.profiles
+      SELECT 1 FROM public.users
       WHERE id = auth.uid() AND role = 'superadmin'
     )
   );
 
--- Admin can SELECT all profiles
-CREATE POLICY "Admin can view all profiles"
-  ON public.profiles
+-- Admin can SELECT all users
+CREATE POLICY "Admin can view all users"
+  ON public.users
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM public.profiles
+      SELECT 1 FROM public.users
       WHERE id = auth.uid() AND role IN ('admin', 'superadmin')
     )
   );
 
--- Admin can UPDATE profiles but NOT change roles
-CREATE POLICY "Admin can update profiles (no role changes)"
-  ON public.profiles
+-- Admin can UPDATE users but NOT change roles
+CREATE POLICY "Admin can update users (no role changes)"
+  ON public.users
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM public.profiles
+      SELECT 1 FROM public.users
       WHERE id = auth.uid() AND role IN ('admin', 'superadmin')
     )
   )
   WITH CHECK (
-    role = (SELECT role FROM public.profiles WHERE id = id)
+    role = (SELECT role FROM public.users WHERE id = id)
   );
 
 -- ============================================
@@ -159,7 +159,7 @@ BEGIN
           FOR SELECT
           USING (
             EXISTS (
-              SELECT 1 FROM public.profiles
+              SELECT 1 FROM public.users
               WHERE id = auth.uid() AND role = ''superadmin''
             )
           )';
@@ -172,14 +172,14 @@ BEGIN
 END $$;
 
 -- ============================================
--- 6. AUTOMATIC PROFILE CREATION TRIGGER
+-- 6. AUTOMATIC USER CREATION TRIGGER
 -- ============================================
 
--- Function to automatically create profile when user is created
+-- Function to automatically create user when auth user is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, phone, address, email, role)
+  INSERT INTO public.users (id, full_name, phone, address, email, role)
   VALUES (
     NEW.id,
     NEW.raw_user_meta_data->>'full_name',
@@ -203,7 +203,7 @@ CREATE TRIGGER on_auth_user_created
 -- 7. AUDIT LOG TRIGGER FUNCTION
 -- ============================================
 
--- Function to log changes to profiles (only if audit_logs table exists)
+-- Function to log changes to users (only if audit_logs table exists)
 DO $$
 BEGIN
     IF EXISTS (
@@ -211,7 +211,7 @@ BEGIN
         WHERE table_schema = 'public' 
         AND table_name = 'audit_logs'
     ) THEN
-        EXECUTE 'CREATE OR REPLACE FUNCTION public.log_profile_changes()
+        EXECUTE 'CREATE OR REPLACE FUNCTION public.log_user_changes()
         RETURNS TRIGGER AS $$
         BEGIN
           IF (TG_OP = ''INSERT'') THEN
@@ -219,7 +219,7 @@ BEGIN
             VALUES (
               auth.uid(),
               ''INSERT'',
-              ''profiles'',
+              ''users'',
               NEW.id::TEXT,
               to_jsonb(NEW)
             );
@@ -229,7 +229,7 @@ BEGIN
             VALUES (
               auth.uid(),
               ''UPDATE'',
-              ''profiles'',
+              ''users'',
               NEW.id::TEXT,
               to_jsonb(OLD),
               to_jsonb(NEW)
@@ -240,7 +240,7 @@ BEGIN
             VALUES (
               auth.uid(),
               ''DELETE'',
-              ''profiles'',
+              ''users'',
               OLD.id::TEXT,
               to_jsonb(OLD)
             );
@@ -250,11 +250,11 @@ BEGIN
         END;
         $$ LANGUAGE plpgsql SECURITY DEFINER';
         
-        EXECUTE 'DROP TRIGGER IF EXISTS log_profile_changes_trigger ON public.profiles';
-        EXECUTE 'CREATE TRIGGER log_profile_changes_trigger
-          AFTER INSERT OR UPDATE OR DELETE ON public.profiles
+        EXECUTE 'DROP TRIGGER IF EXISTS log_user_changes_trigger ON public.users';
+        EXECUTE 'CREATE TRIGGER log_user_changes_trigger
+          AFTER INSERT OR UPDATE OR DELETE ON public.users
           FOR EACH ROW
-          EXECUTE FUNCTION public.log_profile_changes()';
+          EXECUTE FUNCTION public.log_user_changes()';
     END IF;
 END $$;
 
@@ -271,10 +271,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to automatically update updated_at on profiles
-DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
-CREATE TRIGGER update_profiles_updated_at
-  BEFORE UPDATE ON public.profiles
+-- Trigger to automatically update updated_at on users
+DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
+CREATE TRIGGER update_users_updated_at
+  BEFORE UPDATE ON public.users
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
@@ -282,8 +282,8 @@ CREATE TRIGGER update_profiles_updated_at
 -- 9. INDEXES FOR PERFORMANCE
 -- ============================================
 
-CREATE INDEX IF NOT EXISTS profiles_email_idx ON public.profiles(email);
-CREATE INDEX IF NOT EXISTS profiles_role_idx ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS users_email_idx ON public.users(email);
+CREATE INDEX IF NOT EXISTS users_role_idx ON public.users(role);
 
 -- Only create audit_logs indexes if table exists
 DO $$
@@ -305,7 +305,7 @@ END $$;
 
 -- Manually assign superadmin role to specific email
 -- Run this after the setup is complete:
--- UPDATE public.profiles
+-- UPDATE public.users
 -- SET role = 'superadmin'
 -- WHERE email = 'genecorbeta09@gmail.com';
 
@@ -318,7 +318,7 @@ END $$;
 -- 2. Service role key must NEVER be exposed to client
 -- 3. Only superadmin can modify roles (enforced by RLS policy)
 -- 4. Admin cannot promote themselves to superadmin (enforced by RLS policy)
--- 5. All profile changes are automatically logged to audit_logs
+-- 5. All user changes are automatically logged to audit_logs
 
 -- To assign superadmin after user registration:
--- UPDATE public.profiles SET role = 'superadmin' WHERE email = 'user@example.com';
+-- UPDATE public.users SET role = 'superadmin' WHERE email = 'user@example.com';

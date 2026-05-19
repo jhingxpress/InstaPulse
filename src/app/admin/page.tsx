@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Shield, Users, FileText, Package, CreditCard, Settings, LogOut, Search, CheckCircle, XCircle, Clock, AlertCircle, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { isAdmin, getAllProfiles, updateUserRole, type Profile, type UserRole } from '@/lib/profile'
+import { isAdmin, getAllProfiles, updateUserRole, type Profile } from '@/lib/profile'
+import type { UserRole } from '@/lib/profile'
 
 export default function AdminDashboard() {
   const router = useRouter()

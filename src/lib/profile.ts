@@ -1,31 +1,29 @@
 import { supabase } from './supabase'
 
+export type UserRole = 'user' | 'admin' | 'superadmin'
+
 export type Profile = {
   id: string
   full_name: string | null
   phone: string | null
   address: string | null
   email: string | null
-  role: 'user' | 'admin' | 'superadmin'
+  role: UserRole
+  kyc_status: string | null
   created_at: string
   updated_at: string
 }
 
-export type UserRole = 'user' | 'admin' | 'superadmin'
-
 /**
- * Fetch the logged-in user's profile from Supabase
- * This uses RLS policies to ensure users can only access their own profile
+ * Get the current user's profile
  */
 export async function getUserProfile(): Promise<Profile | null> {
   const { data: { user } } = await supabase().auth.getUser()
   
-  if (!user) {
-    return null
-  }
+  if (!user) return null
 
   const { data, error } = await (supabase() as any)
-    .from('profiles')
+    .from('users')
     .select('*')
     .eq('id', user.id)
     .single()
@@ -35,36 +33,57 @@ export async function getUserProfile(): Promise<Profile | null> {
     return null
   }
 
-  return data as Profile
+  return data
 }
 
 /**
- * Get the logged-in user's role
- * Returns null if user is not authenticated
+ * Update the current user's profile
+ */
+export async function updateUserProfile(updates: Partial<Profile>): Promise<boolean> {
+  const { data: { user } } = await supabase().auth.getUser()
+  
+  if (!user) return false
+
+  const { error } = await (supabase() as any)
+    .from('users')
+    .update(updates)
+    .eq('id', user.id)
+
+  if (error) {
+    console.error('Error updating profile:', error)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Get the current user's role
  */
 export async function getUserRole(): Promise<UserRole | null> {
   const profile = await getUserProfile()
-  return profile ? profile.role : null
+  return profile?.role || null
 }
 
 /**
  * Check if the current user has a specific role
  */
-export async function hasRole(requiredRole: UserRole): Promise<boolean> {
-  const role = await getUserRole()
-  if (!role) return false
+export async function hasRole(role: UserRole): Promise<boolean> {
+  const userRole = await getUserRole()
   
-  const roleHierarchy: Record<UserRole, number> = {
-    user: 1,
-    admin: 2,
-    superadmin: 3
-  }
+  if (!userRole) return false
   
-  return roleHierarchy[role] >= roleHierarchy[requiredRole]
+  // Superadmin has all permissions
+  if (userRole === 'superadmin') return true
+  
+  // Admin has user permissions
+  if (role === 'user' && userRole === 'admin') return true
+  
+  return userRole === role
 }
 
 /**
- * Check if the current user is an admin or superadmin
+ * Check if the current user is an admin
  */
 export async function isAdmin(): Promise<boolean> {
   return await hasRole('admin')
@@ -74,42 +93,16 @@ export async function isAdmin(): Promise<boolean> {
  * Check if the current user is a superadmin
  */
 export async function isSuperAdmin(): Promise<boolean> {
-  return await hasRole('superadmin')
+  const role = await getUserRole()
+  return role === 'superadmin'
 }
 
 /**
- * Update the logged-in user's profile data
- * This uses RLS policies to ensure users can only update their own profile
- */
-export async function updateUserProfile(updates: Partial<Profile>): Promise<Profile | null> {
-  const { data: { user } } = await supabase().auth.getUser()
-  
-  if (!user) {
-    return null
-  }
-
-  const { data, error } = await (supabase() as any)
-    .from('profiles')
-    .update(updates)
-    .eq('id', user.id)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Error updating profile:', error)
-    return null
-  }
-
-  return data as Profile
-}
-
-/**
- * Update a user's role (admin/superadmin only)
- * This uses RLS policies to ensure only authorized users can change roles
+ * Update a user's role (admin or superadmin only)
  */
 export async function updateUserRole(userId: string, newRole: UserRole): Promise<boolean> {
   const { error } = await (supabase() as any)
-    .from('profiles')
+    .from('users')
     .update({ role: newRole })
     .eq('id', userId)
 
@@ -122,12 +115,11 @@ export async function updateUserRole(userId: string, newRole: UserRole): Promise
 }
 
 /**
- * Get all profiles (admin/superadmin only)
- * This uses RLS policies to ensure only authorized users can view all profiles
+ * Get all profiles (admin or superadmin only)
  */
 export async function getAllProfiles(): Promise<Profile[]> {
   const { data, error } = await (supabase() as any)
-    .from('profiles')
+    .from('users')
     .select('*')
     .order('created_at', { ascending: false })
 
@@ -136,22 +128,17 @@ export async function getAllProfiles(): Promise<Profile[]> {
     return []
   }
 
-  return data as Profile[]
+  return data || []
 }
 
 /**
- * Sign up a new user with profile data
- * The profile is automatically created by the PostgreSQL trigger
+ * Sign up with email and create profile
  */
-export async function signUpWithEmail(
-  email: string,
-  password: string,
-  metadata: {
-    full_name: string
-    phone: string
-    address: string
-  }
-) {
+export async function signUpWithEmail(email: string, password: string, metadata: {
+  full_name: string
+  phone: string
+  address: string
+}) {
   const { data, error } = await supabase().auth.signUp({
     email,
     password,
