@@ -31,7 +31,7 @@ export default function PackagesPage() {
   const packages = [
     {
       id: 1,
-      name: 'Basic Protection',
+      name: 'Basic Package',
       price: 20000,
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
@@ -42,7 +42,7 @@ export default function PackagesPage() {
     },
     {
       id: 2,
-      name: 'Standard Protection',
+      name: 'Standard Package',
       price: 21000,
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
@@ -53,7 +53,7 @@ export default function PackagesPage() {
     },
     {
       id: 3,
-      name: 'Advanced Response',
+      name: 'Advance Package',
       price: 22000,
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
@@ -64,7 +64,7 @@ export default function PackagesPage() {
     },
     {
       id: 4,
-      name: 'Enterprise Security',
+      name: 'Enterprise Package',
       price: 25000,
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },

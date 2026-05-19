@@ -44,10 +44,10 @@ export default function CheckoutContent() {
   }
 
   const packages = [
-    { id: '1', name: 'Basic Protection', price: 20000 },
-    { id: '2', name: 'Standard Protection', price: 21000 },
-    { id: '3', name: 'Advanced Response', price: 22000 },
-    { id: '4', name: 'Enterprise Security', price: 25000 },
+    { id: '1', name: 'Basic Package', price: 20000 },
+    { id: '2', name: 'Standard Package', price: 21000 },
+    { id: '3', name: 'Advance Package', price: 22000 },
+    { id: '4', name: 'Enterprise Package', price: 25000 },
   ]
 
   const selectedPackage = packages.find((p) => p.id === packageId) || packages[2]
