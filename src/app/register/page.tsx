@@ -71,8 +71,11 @@ export default function RegisterPage() {
         // Email confirmation is required
         setSuccess(true)
       } else if (data.session) {
-        // User is already confirmed, redirect to dashboard
-        router.push('/dashboard')
+        // User is already confirmed, show success then redirect
+        setSuccess(true)
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 2000)
       }
     } catch (err: any) {
       setError(err.message || 'Registration failed')
@@ -121,7 +124,7 @@ export default function RegisterPage() {
                 <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-green-800">
                   <p className="font-semibold mb-1">Registration successful!</p>
-                  <p>Please check your email to confirm your account. You'll need to click the confirmation link before you can log in.</p>
+                  <p>Your account has been created. Redirecting to dashboard...</p>
                 </div>
               </motion.div>
             )}

@@ -186,14 +186,15 @@ END $$;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, full_name, phone, address, email, role)
+  INSERT INTO public.users (id, full_name, phone, address, email, role, kyc_status)
   VALUES (
     NEW.id,
     NEW.raw_user_meta_data->>'full_name',
     NEW.raw_user_meta_data->>'phone',
     NEW.raw_user_meta_data->>'address',
     NEW.email,
-    'user' -- Default role
+    'user', -- Default role
+    'not_submitted' -- Default KYC status
   );
   RETURN NEW;
 END;
