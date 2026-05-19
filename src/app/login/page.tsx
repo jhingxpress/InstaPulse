@@ -30,25 +30,6 @@ export default function LoginPage() {
       if (error) throw error
       if (!data.user) throw new Error('Login failed: no user returned')
 
-      // Fallback: ensure user exists in public.users (in case trigger failed)
-      const { data: existingUser } = await supabase()
-        .from('users')
-        .select('id')
-        .eq('id', data.user.id)
-        .single()
-
-      if (!existingUser) {
-        await (supabase() as any).from('users').insert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || '',
-          phone: data.user.user_metadata?.phone || '',
-          address: data.user.user_metadata?.address || '',
-          role: 'user',
-          kyc_status: 'not_submitted',
-        })
-      }
-
       // Role-based redirect
       const { data: profile } = await (supabase() as any)
         .from('users')
@@ -56,9 +37,14 @@ export default function LoginPage() {
         .eq('id', data.user.id)
         .single()
 
-      if (profile?.role === 'superadmin') {
+      if (!profile) {
+        await supabase().auth.signOut()
+        throw new Error('Account not found. Please contact support.')
+      }
+
+      if (profile.role === 'superadmin') {
         router.push('/superadmin')
-      } else if (profile?.role === 'admin') {
+      } else if (profile.role === 'admin') {
         router.push('/admin')
       } else {
         router.push('/dashboard')
