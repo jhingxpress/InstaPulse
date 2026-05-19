@@ -24,6 +24,13 @@ interface PackageModalProps {
   onSelectPackage: (pkg: PackageData) => void
 }
 
+const pluralize = (name: string, qty: number) => {
+  if (qty <= 1) return name
+  if (name === 'CCTV Camera') return 'CCTV Cameras'
+  if (name === 'Alert Button') return 'Alert Buttons'
+  return name
+}
+
 export default function PackageModal({ open, onClose, onSelectPackage }: PackageModalProps) {
   const [packages, setPackages] = useState<PackageData[]>([])
   const [loading, setLoading] = useState(true)
@@ -115,7 +122,7 @@ export default function PackageModal({ open, onClose, onSelectPackage }: Package
                           {pkg.items.map((item, i) => (
                             <li key={i} className="flex items-center space-x-2 text-sm text-gray-700">
                               <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                              <span>{item.item_name}</span>
+                              <span>{pluralize(item.item_name, item.quantity)}</span>
                             </li>
                           ))}
                         </ul>

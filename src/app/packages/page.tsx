@@ -36,7 +36,7 @@ export default function PackagesPage() {
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
         { icon: Camera, name: 'CCTV Camera', quantity: 1 },
-        { icon: Radio, name: 'Alert Buttons', quantity: 1 },
+        { icon: Radio, name: 'Alert Button', quantity: 1 },
       ],
       featured: false,
     },
@@ -47,7 +47,7 @@ export default function PackagesPage() {
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
         { icon: Camera, name: 'CCTV Camera', quantity: 2 },
-        { icon: Radio, name: 'Alert Buttons', quantity: 1 },
+        { icon: Radio, name: 'Alert Button', quantity: 1 },
       ],
       featured: false,
     },
@@ -58,7 +58,7 @@ export default function PackagesPage() {
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
         { icon: Camera, name: 'CCTV Camera', quantity: 2 },
-        { icon: Radio, name: 'Alert Buttons', quantity: 2 },
+        { icon: Radio, name: 'Alert Button', quantity: 2 },
       ],
       featured: true,
     },
@@ -69,11 +69,18 @@ export default function PackagesPage() {
       items: [
         { icon: Shield, name: 'Alert System', quantity: 1 },
         { icon: Camera, name: 'CCTV Camera', quantity: 4 },
-        { icon: Radio, name: 'Alert Buttons', quantity: 2 },
+        { icon: Radio, name: 'Alert Button', quantity: 2 },
       ],
       featured: false,
     },
   ]
+
+  const pluralize = (name: string, qty: number) => {
+    if (qty <= 1) return name
+    if (name === 'CCTV Camera') return 'CCTV Cameras'
+    if (name === 'Alert Button') return 'Alert Buttons'
+    return name
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -133,7 +140,7 @@ export default function PackagesPage() {
                   {pkg.items.map((item) => (
                     <li key={item.name} className="flex items-center space-x-3">
                       <item.icon className="h-5 w-5 flex-shrink-0" />
-                      <span className="flex-1">{item.name}</span>
+                      <span className="flex-1">{pluralize(item.name, item.quantity)}</span>
                       <span className="font-semibold">({item.quantity})</span>
                     </li>
                   ))}
