@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -48,24 +47,21 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      const { data, error } = await supabase().auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullname,
-            phone: formData.phone,
-            address: formData.address,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.fullname,
+          phone: formData.phone,
+          address: formData.address,
+        }),
       })
 
-      if (error) throw error
-      if (!data.user) throw new Error('Registration failed.')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Registration failed.')
 
-      // Supabase sends confirmation email (via configured SMTP/Resend)
-      // Redirect to verify-pending with email so user can resend if needed
       router.push(`/verify-pending?email=${encodeURIComponent(formData.email)}`)
     } catch (err: any) {
       setError(err.message || 'Registration failed')

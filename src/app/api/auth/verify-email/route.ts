@@ -35,16 +35,11 @@ export async function POST(req: NextRequest) {
       .update({ used_at: new Date().toISOString() })
       .eq('id', record.id)
 
-    // Mark user as verified
-    const { error: updateError } = await db
-      .from('users')
-      .update({ email_verified: true })
-      .eq('id', record.user_id)
+    // Mark user as verified in public.users
+    await db.from('users').update({ email_verified: true }).eq('id', record.user_id)
 
-    if (updateError) {
-      console.error('Failed to mark user verified:', updateError)
-      return NextResponse.json({ error: 'Verification failed. Please try again.' }, { status: 500 })
-    }
+    // Confirm user in Supabase auth so signInWithPassword works
+    await db.auth.admin.updateUserById(record.user_id, { email_confirm: true })
 
     return NextResponse.json({ success: true })
   } catch (err) {
