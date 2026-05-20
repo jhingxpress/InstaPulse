@@ -63,12 +63,12 @@ export default function RegisterPage() {
       if (error) throw error
       if (!data.user) throw new Error('Registration failed.')
 
-      // Send verification email via Resend
-      await fetch('/api/auth/send-verification', {
+      // Send verification email via Resend (non-blocking — failure won't prevent redirect)
+      fetch('/api/auth/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: data.user.id, email: data.user.email }),
-      })
+      }).catch(() => {})
 
       // Redirect to verify-pending page
       router.push('/verify-pending')
