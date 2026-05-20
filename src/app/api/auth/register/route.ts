@@ -8,9 +8,21 @@ export async function POST(req: NextRequest) {
   try {
     const { email, password, full_name, phone, address } = await req.json()
 
+    console.log('[REGISTER] Request received:', { email, full_name })
+
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
     }
+
+    // Validate environment variables
+    const requiredVars = ['RESEND_API_KEY', 'NEXT_PUBLIC_SITE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
+    const missing = requiredVars.filter(v => !process.env[v])
+    if (missing.length > 0) {
+      console.error('[REGISTER] Missing env vars:', missing)
+      return NextResponse.json({ error: `Server misconfiguration: missing ${missing.join(', ')}` }, { status: 500 })
+    }
+
+    console.log('[REGISTER] Env vars validated')
 
     const db = supabaseAdmin()
 
@@ -23,16 +35,20 @@ export async function POST(req: NextRequest) {
       user_metadata: { full_name, phone, address },
     })
 
+    console.log('[REGISTER] Supabase create user result:', { success: !createError, error: createError?.message })
+
     if (createError) {
       if (createError.message?.toLowerCase().includes('already registered') ||
           createError.message?.toLowerCase().includes('already been registered') ||
           createError.message?.toLowerCase().includes('duplicate')) {
         return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 })
       }
+      console.error('[REGISTER] Supabase create error:', createError)
       return NextResponse.json({ error: createError.message }, { status: 400 })
     }
 
     const userId = authData.user.id
+    console.log('[REGISTER] User created, ID:', userId)
 
     // Wait briefly for the handle_new_user trigger to create public.users
     await new Promise(r => setTimeout(r, 500))
@@ -45,6 +61,8 @@ export async function POST(req: NextRequest) {
       .eq('user_id', userId)
       .gte('created_at', oneHourAgo)
 
+    console.log('[REGISTER] Rate limit check:', { userId, count })
+
     if ((count ?? 0) >= 3) {
       return NextResponse.json({ error: 'Too many verification attempts.' }, { status: 429 })
     }
@@ -53,16 +71,61 @@ export async function POST(req: NextRequest) {
     const token = crypto.randomUUID() + '-' + crypto.randomUUID()
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
-    await db.from('email_verifications').insert({ user_id: userId, token, expires_at: expiresAt })
+    console.log('[REGISTER] Token generated, inserting to DB...')
+
+    const { error: insertError } = await db.from('email_verifications').insert({ user_id: userId, token, expires_at: expiresAt })
+
+    if (insertError) {
+      console.error('[REGISTER] Token insert error:', insertError)
+      return NextResponse.json({ error: 'Failed to create verification token' }, { status: 500 })
+    }
+
+    console.log('[REGISTER] Token inserted successfully')
 
     const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify?token=${token}`
+    console.log('[REGISTER] Sending email via Resend to:', email)
 
-    await resend.emails.send({
-      from: 'InstaPulse <admin@instapulse.site>',
-      to: email,
-      subject: 'Verify your InstaPulse account',
-      html: buildEmailHtml(verifyUrl, full_name),
-    })
+    // Try custom domain first, fallback to Resend's default if not verified
+    let emailError = null
+    let result = null
+
+    try {
+      result = await resend.emails.send({
+        from: 'InstaPulse <admin@instapulse.site>',
+        to: email,
+        subject: 'Verify your InstaPulse account',
+        html: buildEmailHtml(verifyUrl, full_name),
+      })
+      console.log('[REGISTER] Resend result (custom domain):', result)
+    } catch (err: any) {
+      console.error('[REGISTER] Resend error (custom domain):', err)
+      emailError = err
+
+      // Fallback to Resend's default domain
+      console.log('[REGISTER] Trying fallback to onboarding@resend.dev...')
+      try {
+        result = await resend.emails.send({
+          from: 'InstaPulse <onboarding@resend.dev>',
+          to: email,
+          subject: 'Verify your InstaPulse account',
+          html: buildEmailHtml(verifyUrl, full_name),
+        })
+        console.log('[REGISTER] Resend result (fallback):', result)
+        emailError = null
+      } catch (fallbackErr: any) {
+        console.error('[REGISTER] Resend error (fallback):', fallbackErr)
+        emailError = fallbackErr
+      }
+    }
+
+    console.log('[REGISTER] Final Resend result:', { success: !emailError, error: emailError })
+
+    if (emailError) {
+      console.error('[REGISTER] Resend error:', emailError)
+      return NextResponse.json({ error: 'Failed to send verification email' }, { status: 500 })
+    }
+
+    console.log('[REGISTER] Email sent successfully')
 
     return NextResponse.json({ success: true })
   } catch (err) {

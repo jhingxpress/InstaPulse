@@ -7,9 +7,21 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 export async function POST(req: NextRequest) {
   try {
     const { userId, email } = await req.json()
+    console.log('[SEND-VERIFICATION] Request received:', { userId, email })
+
     if (!userId || !email) {
       return NextResponse.json({ error: 'Missing userId or email' }, { status: 400 })
     }
+
+    // Validate environment variables
+    const requiredVars = ['RESEND_API_KEY', 'NEXT_PUBLIC_SITE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
+    const missing = requiredVars.filter(v => !process.env[v])
+    if (missing.length > 0) {
+      console.error('[SEND-VERIFICATION] Missing env vars:', missing)
+      return NextResponse.json({ error: `Server misconfiguration: missing ${missing.join(', ')}` }, { status: 500 })
+    }
+
+    console.log('[SEND-VERIFICATION] Env vars validated')
 
     const db = supabaseAdmin()
 
@@ -32,28 +44,62 @@ export async function POST(req: NextRequest) {
     const token = crypto.randomUUID() + '-' + crypto.randomUUID()
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
+    console.log('[SEND-VERIFICATION] Token generated, inserting to DB...')
+
     const { error: insertError } = await db
       .from('email_verifications')
       .insert({ user_id: userId, token, expires_at: expiresAt })
 
     if (insertError) {
-      console.error('Token insert error:', insertError)
+      console.error('[SEND-VERIFICATION] Token insert error:', insertError)
       return NextResponse.json({ error: 'Failed to create verification token' }, { status: 500 })
     }
 
-    const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify?token=${token}`
+    console.log('[SEND-VERIFICATION] Token inserted successfully')
 
-    const { error: emailError } = await resend.emails.send({
-      from: 'InstaPulse <admin@instapulse.site>',
-      to: email,
-      subject: 'Verify your InstaPulse account',
-      html: buildEmailHtml(verifyUrl),
-    })
+    const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify?token=${token}`
+    console.log('[SEND-VERIFICATION] Sending email via Resend to:', email)
+
+    // Try custom domain first, fallback to Resend's default if not verified
+    const fromEmail = 'InstaPulse <admin@instapulse.site>'
+    let emailError = null
+    let result = null
+
+    try {
+      result = await resend.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: 'Verify your InstaPulse account',
+        html: buildEmailHtml(verifyUrl),
+      })
+      console.log('[SEND-VERIFICATION] Resend result (custom domain):', result)
+    } catch (err: any) {
+      console.error('[SEND-VERIFICATION] Resend error (custom domain):', err)
+      emailError = err
+
+      // Fallback to Resend's default domain
+      console.log('[SEND-VERIFICATION] Trying fallback to onboarding@resend.dev...')
+      try {
+        result = await resend.emails.send({
+          from: 'InstaPulse <onboarding@resend.dev>',
+          to: email,
+          subject: 'Verify your InstaPulse account',
+          html: buildEmailHtml(verifyUrl),
+        })
+        console.log('[SEND-VERIFICATION] Resend result (fallback):', result)
+        emailError = null
+      } catch (fallbackErr: any) {
+        console.error('[SEND-VERIFICATION] Resend error (fallback):', fallbackErr)
+        emailError = fallbackErr
+      }
+    }
 
     if (emailError) {
-      console.error('Resend error:', emailError)
+      console.error('[SEND-VERIFICATION] Final Resend error:', emailError)
       return NextResponse.json({ error: 'Failed to send verification email' }, { status: 500 })
     }
+
+    console.log('[SEND-VERIFICATION] Email sent successfully')
 
     return NextResponse.json({ success: true })
   } catch (err) {
