@@ -34,11 +34,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Dashboard routes: block deleted users and unverified users
+  // Dashboard routes: block deleted users
   if (req.nextUrl.pathname.startsWith('/dashboard') && user) {
     const { data: profile } = await supabase
       .from('users')
-      .select('id, role, email_verified')
+      .select('id, role')
       .eq('id', user.id)
       .single()
 

@@ -3,8 +3,8 @@
 -- Run in Supabase SQL Editor (Dashboard → SQL Editor)
 -- ============================================================
 
--- 1. Add email_verified column to users
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;
+-- 1. Add email_verified column to users (default true since email verification is disabled)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT true;
 
 -- 2. Mark ALL existing users as verified (they pre-existed this feature)
 UPDATE public.users SET email_verified = true WHERE email_verified = false;
