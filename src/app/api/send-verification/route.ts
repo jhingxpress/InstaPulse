@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     // Rate limit: max 3 verification emails per user per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     const { count } = await db
-      .from('email_verification_tokens')
+      .from('email_verifications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .gte('created_at', oneHourAgo)
@@ -28,12 +28,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Generate secure token and set 24h expiry
+    // Generate secure token and set 1-hour expiry
     const token = crypto.randomUUID() + '-' + crypto.randomUUID()
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
     const { error: insertError } = await db
-      .from('email_verification_tokens')
+      .from('email_verifications')
       .insert({ user_id: userId, token, expires_at: expiresAt })
 
     if (insertError) {
@@ -110,7 +110,7 @@ function buildEmailHtml(verifyUrl: string): string {
               </p>
               <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 24px;" />
               <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">
-                ⏰ This link expires in <strong>24 hours</strong>.
+                ⏰ This link expires in <strong>1 hour</strong>.
               </p>
               <p style="margin:0;font-size:13px;color:#9ca3af;">
                 If you did not create an InstaPulse account, you can safely ignore this email.

@@ -62,7 +62,7 @@ export default function VerifyPendingPage() {
           We sent a verification link to your email address.
         </p>
         <p className="text-gray-500 mb-8 text-sm">
-          Click the link in the email to activate your account. The link expires in <strong>24 hours</strong>.
+          Click the link in the email to activate your account. The link expires in <strong>1 hour</strong>.
         </p>
 
         {resendStatus === 'success' && (

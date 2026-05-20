@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
 
     // Look up the token
     const { data: record, error: fetchError } = await db
-      .from('email_verification_tokens')
-      .select('id, user_id, expires_at, used_at')
+      .from('email_verifications')
+      .select('id, user_id, expires_at, used')
       .eq('token', token)
       .single()
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired verification link.' }, { status: 400 })
     }
 
-    if (record.used_at) {
+    if (record.used) {
       return NextResponse.json({ error: 'This verification link has already been used.' }, { status: 400 })
     }
 
@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     // Mark token as used
     await db
-      .from('email_verification_tokens')
-      .update({ used_at: new Date().toISOString() })
+      .from('email_verifications')
+      .update({ used: true })
       .eq('id', record.id)
 
     // Mark user as verified in public.users

@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     // Rate limit: max 3 tokens per user per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     const { count } = await db
-      .from('email_verification_tokens')
+      .from('email_verifications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .gte('created_at', oneHourAgo)
@@ -49,11 +49,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Too many verification attempts.' }, { status: 429 })
     }
 
-    // Generate token with 24h expiry
+    // Generate token with 1-hour expiry
     const token = crypto.randomUUID() + '-' + crypto.randomUUID()
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
-    await db.from('email_verification_tokens').insert({ user_id: userId, token, expires_at: expiresAt })
+    await db.from('email_verifications').insert({ user_id: userId, token, expires_at: expiresAt })
 
     const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify?token=${token}`
 
@@ -100,7 +100,7 @@ function buildEmailHtml(verifyUrl: string, name?: string): string {
             <p style="margin:0 0 16px;font-size:13px;color:#9ca3af;">Or copy and paste this link:</p>
             <p style="margin:0 0 28px;font-size:12px;color:#6b7280;word-break:break-all;background-color:#f9fafb;padding:12px;border-radius:6px;border:1px solid #e5e7eb;">${verifyUrl}</p>
             <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 24px;" />
-            <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">⏰ This link expires in <strong>24 hours</strong>.</p>
+            <p style="margin:0 0 8px;font-size:13px;color:#9ca3af;">⏰ This link expires in <strong>1 hour</strong>.</p>
             <p style="margin:0;font-size:13px;color:#9ca3af;">If you did not create an account, you can safely ignore this email.</p>
           </td>
         </tr>
