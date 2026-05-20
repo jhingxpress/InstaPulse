@@ -34,16 +34,20 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Dashboard routes: block deleted users (auth session exists but no public.users profile)
+  // Dashboard routes: block deleted users and unverified users
   if (req.nextUrl.pathname.startsWith('/dashboard') && user) {
     const { data: profile } = await supabase
       .from('users')
-      .select('id')
+      .select('id, role, email_verified')
       .eq('id', user.id)
       .single()
 
     if (!profile) {
       return NextResponse.redirect(new URL('/login', req.url))
+    }
+
+    if (profile.role === 'user' && !profile.email_verified) {
+      return NextResponse.redirect(new URL('/verify-pending', req.url))
     }
   }
 

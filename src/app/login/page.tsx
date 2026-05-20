@@ -33,13 +33,18 @@ export default function LoginPage() {
       // Role-based redirect
       const { data: profile } = await (supabase() as any)
         .from('users')
-        .select('role')
+        .select('role, email_verified')
         .eq('id', data.user.id)
         .single()
 
       if (!profile) {
         await supabase().auth.signOut()
         throw new Error('Account not found. Please contact support.')
+      }
+
+      if (profile.role === 'user' && !profile.email_verified) {
+        await supabase().auth.signOut()
+        throw new Error('Please verify your email before logging in. Check your inbox for the verification link.')
       }
 
       if (profile.role === 'superadmin') {

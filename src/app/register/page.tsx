@@ -57,26 +57,21 @@ export default function RegisterPage() {
             phone: formData.phone,
             address: formData.address,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
       if (error) throw error
+      if (!data.user) throw new Error('Registration failed.')
 
-      // Profile is automatically created by PostgreSQL trigger
-      // No manual insertion needed
+      // Send verification email via Resend
+      await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: data.user.id, email: data.user.email }),
+      })
 
-      // Check if email confirmation is required
-      if (data.user && !data.session) {
-        // Email confirmation is required
-        setSuccess(true)
-      } else if (data.session) {
-        // User is already confirmed, show success then redirect
-        setSuccess(true)
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 2000)
-      }
+      // Redirect to verify-pending page
+      router.push('/verify-pending')
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {
