@@ -45,10 +45,6 @@ export async function middleware(req: NextRequest) {
     if (!profile) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
-
-    if (profile.role === 'user' && !profile.email_verified) {
-      return NextResponse.redirect(new URL('/verify-pending', req.url))
-    }
   }
 
   // Admin routes (admin or superadmin only)

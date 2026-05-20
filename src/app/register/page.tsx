@@ -57,21 +57,16 @@ export default function RegisterPage() {
             phone: formData.phone,
             address: formData.address,
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
       if (error) throw error
       if (!data.user) throw new Error('Registration failed.')
 
-      // Send verification email via Resend (non-blocking — failure won't prevent redirect)
-      fetch('/api/auth/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: data.user.id, email: data.user.email }),
-      }).catch(() => {})
-
-      // Redirect to verify-pending page
-      router.push('/verify-pending')
+      // Supabase sends confirmation email (via configured SMTP/Resend)
+      // Redirect to verify-pending with email so user can resend if needed
+      router.push(`/verify-pending?email=${encodeURIComponent(formData.email)}`)
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {

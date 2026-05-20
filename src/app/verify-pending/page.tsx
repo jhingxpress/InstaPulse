@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Shield, Mail, RefreshCw, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 export default function VerifyPendingPage() {
+  const searchParams = useSearchParams()
+  const emailParam = searchParams.get('email') || ''
   const [resending, setResending] = useState(false)
   const [resendStatus, setResendStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [resendMessage, setResendMessage] = useState('')
@@ -15,26 +18,25 @@ export default function VerifyPendingPage() {
     setResendStatus('idle')
 
     try {
-      const { data: { user } } = await supabase().auth.getUser()
-      if (!user) {
+      const targetEmail = emailParam
+      if (!targetEmail) {
         setResendStatus('error')
-        setResendMessage('You are not logged in. Please register again.')
+        setResendMessage('Email address not found. Please register again.')
         return
       }
 
-      const res = await fetch('/api/auth/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
+      const { error } = await supabase().auth.resend({
+        type: 'signup',
+        email: targetEmail,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       })
-      const data = await res.json()
 
-      if (res.ok) {
-        setResendStatus('success')
-        setResendMessage('Verification email sent! Check your inbox.')
-      } else {
+      if (error) {
         setResendStatus('error')
-        setResendMessage(data.error || 'Failed to resend. Please try again later.')
+        setResendMessage(error.message || 'Failed to resend. Please try again later.')
+      } else {
+        setResendStatus('success')
+        setResendMessage('Verification email resent! Check your inbox.')
       }
     } catch {
       setResendStatus('error')

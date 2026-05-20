@@ -17,8 +17,12 @@ export default function AuthCallback() {
         if (error) throw error
         
         if (data.session) {
-          // Email confirmed successfully
-          router.push('/dashboard')
+          // Sync email_verified in public.users
+          await supabase()
+            .from('users')
+            .update({ email_verified: true })
+            .eq('id', data.session.user.id)
+          router.push('/login')
         } else {
           setError('Email confirmation failed. Please try again.')
         }
