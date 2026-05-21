@@ -6,11 +6,11 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, email } = await req.json()
-    console.log('[SEND-VERIFICATION] Request received:', { userId, email })
+    const body = await req.json()
+    console.log('[SEND-VERIFICATION] Request received:', { email: body.email, userId: body.userId })
 
-    if (!userId || !email) {
-      return NextResponse.json({ error: 'Missing userId or email' }, { status: 400 })
+    if (!body.email) {
+      return NextResponse.json({ error: 'Missing email' }, { status: 400 })
     }
 
     // Validate environment variables
@@ -24,6 +24,22 @@ export async function POST(req: NextRequest) {
     console.log('[SEND-VERIFICATION] Env vars validated')
 
     const db = supabaseAdmin()
+    const email: string = body.email
+
+    // Resolve userId — accept directly or look up by email
+    let userId: string = body.userId
+    if (!userId) {
+      const { data: { users }, error: lookupError } = await db.auth.admin.listUsers()
+      if (lookupError) {
+        console.error('[SEND-VERIFICATION] User lookup error:', lookupError)
+        return NextResponse.json({ error: 'Failed to look up account.' }, { status: 500 })
+      }
+      const found = users.find(u => u.email === email)
+      if (!found) {
+        return NextResponse.json({ error: 'No account found with this email.' }, { status: 404 })
+      }
+      userId = found.id
+    }
 
     // Rate limit: max 3 verification emails per user per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()

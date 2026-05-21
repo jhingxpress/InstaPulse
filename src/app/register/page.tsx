@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [success, setSuccess] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -47,22 +48,23 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      const { data, error } = await supabase().auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullname,
-            phone: formData.phone,
-            address: formData.address,
-          },
-        },
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.fullname,
+          phone: formData.phone,
+          address: formData.address,
+        }),
       })
 
-      if (error) throw error
-      if (!data.user) throw new Error('Registration failed.')
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Registration failed.')
 
-      router.push('/login')
+      setSuccess(true)
+      router.push(`/verify-pending?email=${encodeURIComponent(formData.email)}`)
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {
@@ -109,8 +111,8 @@ export default function RegisterPage() {
               >
                 <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-green-800">
-                  <p className="font-semibold mb-1">Registration successful!</p>
-                  <p>Your account has been created. Redirecting to dashboard...</p>
+                  <p className="font-semibold mb-1">Account created!</p>
+                  <p>Check your email for a verification link.</p>
                 </div>
               </motion.div>
             )}

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Shield, Mail, RefreshCw, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
 
 export default function VerifyPendingPage() {
   const searchParams = useSearchParams()
@@ -25,18 +24,19 @@ export default function VerifyPendingPage() {
         return
       }
 
-      const { error } = await supabase().auth.resend({
-        type: 'signup',
-        email: targetEmail,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      const res = await fetch('/api/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
       })
+      const data = await res.json()
 
-      if (error) {
+      if (!res.ok) {
         setResendStatus('error')
-        setResendMessage(error.message || 'Failed to resend. Please try again later.')
+        setResendMessage(data.error || 'Failed to resend. Please try again later.')
       } else {
         setResendStatus('success')
-        setResendMessage('Verification email resent! Check your inbox.')
+        setResendMessage('Verification email sent! Check your inbox.')
       }
     } catch {
       setResendStatus('error')

@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [unverifiedEmail, setUnverifiedEmail] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,7 +51,12 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     } catch (err: any) {
-      setError(err.message || 'Login failed')
+      if (err.message?.toLowerCase().includes('email not confirmed')) {
+        setUnverifiedEmail(email)
+        setError('Your email is not verified yet. Please check your inbox or resend the verification email.')
+      } else {
+        setError(err.message || 'Login failed')
+      }
     } finally {
       setLoading(false)
     }
@@ -83,7 +89,17 @@ export default function LoginPage() {
                 className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3"
               >
                 <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{error}</p>
+                <div className="text-sm text-red-800">
+                  <p>{error}</p>
+                  {unverifiedEmail && (
+                    <a
+                      href={`/verify-pending?email=${encodeURIComponent(unverifiedEmail)}`}
+                      className="mt-2 inline-block font-semibold underline"
+                    >
+                      Resend verification email →
+                    </a>
+                  )}
+                </div>
               </motion.div>
             )}
 
