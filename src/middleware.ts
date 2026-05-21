@@ -46,7 +46,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
 
-    if (profile.role === 'user' && !profile.email_verified) {
+    if (profile.email_verified === false && profile.role !== 'admin' && profile.role !== 'superadmin') {
       return NextResponse.redirect(new URL('/verify-pending', req.url))
     }
   }

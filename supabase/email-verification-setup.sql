@@ -6,8 +6,31 @@
 -- 1. Add email_verified column to users (default false — new users must verify email)
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;
 
+-- 1b. Fix default if column already existed with DEFAULT true
+ALTER TABLE public.users ALTER COLUMN email_verified SET DEFAULT false;
+
 -- 2. Mark ALL existing users as verified (they pre-existed this feature)
-UPDATE public.users SET email_verified = true WHERE email_verified = false;
+UPDATE public.users SET email_verified = true WHERE email_verified IS NULL OR email_verified = true;
+
+-- 2b. Patch the trigger to explicitly set email_verified = false for new registrations
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, full_name, phone, address, email, role, kyc_status, email_verified)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'phone',
+    NEW.raw_user_meta_data->>'address',
+    NEW.email,
+    'user',
+    'not_submitted',
+    false
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 3. Create email_verifications table
 CREATE TABLE IF NOT EXISTS public.email_verifications (

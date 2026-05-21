@@ -73,7 +73,12 @@ export async function POST(req: NextRequest) {
     await new Promise(r => setTimeout(r, 600))
 
     // Explicitly mark email_verified = false so login is blocked until they verify
-    await db.from('users').update({ email_verified: false }).eq('id', userId)
+    const { error: verifiedUpdateError } = await db.from('users').update({ email_verified: false }).eq('id', userId)
+    if (verifiedUpdateError) {
+      console.error('[REGISTER] Failed to set email_verified=false:', verifiedUpdateError)
+    } else {
+      console.log('[REGISTER] email_verified set to false for user:', userId)
+    }
 
     // Rate limit: max 3 tokens per user per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
