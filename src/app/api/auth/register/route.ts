@@ -26,12 +26,13 @@ export async function POST(req: NextRequest) {
 
     const db = supabaseAdmin()
 
-    // Create user via admin SDK — bypasses Supabase's own email system
-    // email_confirm: false so user cannot sign in until our link is clicked
+    // Create user via admin SDK with email_confirm: TRUE
+    // This prevents Supabase from sending any confirmation email (avoids SMTP errors)
+    // Login is blocked via our own email_verified=false field instead
     const { data: authData, error: createError } = await db.auth.admin.createUser({
       email,
       password,
-      email_confirm: false,
+      email_confirm: true,
       user_metadata: { full_name, phone, address },
     })
 
@@ -51,7 +52,10 @@ export async function POST(req: NextRequest) {
     console.log('[REGISTER] User created, ID:', userId)
 
     // Wait briefly for the handle_new_user trigger to create public.users
-    await new Promise(r => setTimeout(r, 500))
+    await new Promise(r => setTimeout(r, 600))
+
+    // Explicitly mark email_verified = false so login is blocked until they verify
+    await db.from('users').update({ email_verified: false }).eq('id', userId)
 
     // Rate limit: max 3 tokens per user per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
@@ -85,44 +89,29 @@ export async function POST(req: NextRequest) {
     const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify?token=${token}`
     console.log('[REGISTER] Sending email via Resend to:', email)
 
-    // Try custom domain first, fallback to Resend's default if not verified
-    let emailError = null
-    let result = null
+    // Send via Resend — SDK returns { data, error } and does NOT throw
+    const sendResult = await resend.emails.send({
+      from: 'InstaPulse <admin@instapulse.site>',
+      to: email,
+      subject: 'Verify your InstaPulse account',
+      html: buildEmailHtml(verifyUrl, full_name),
+    })
+    console.log('[REGISTER] Resend result:', sendResult)
 
-    try {
-      result = await resend.emails.send({
-        from: 'InstaPulse <admin@instapulse.site>',
+    if (sendResult.error) {
+      console.warn('[REGISTER] Custom domain failed, trying fallback:', sendResult.error)
+      // Fallback to Resend's onboarding domain
+      const fallbackResult = await resend.emails.send({
+        from: 'InstaPulse <onboarding@resend.dev>',
         to: email,
         subject: 'Verify your InstaPulse account',
         html: buildEmailHtml(verifyUrl, full_name),
       })
-      console.log('[REGISTER] Resend result (custom domain):', result)
-    } catch (err: any) {
-      console.error('[REGISTER] Resend error (custom domain):', err)
-      emailError = err
-
-      // Fallback to Resend's default domain
-      console.log('[REGISTER] Trying fallback to onboarding@resend.dev...')
-      try {
-        result = await resend.emails.send({
-          from: 'InstaPulse <onboarding@resend.dev>',
-          to: email,
-          subject: 'Verify your InstaPulse account',
-          html: buildEmailHtml(verifyUrl, full_name),
-        })
-        console.log('[REGISTER] Resend result (fallback):', result)
-        emailError = null
-      } catch (fallbackErr: any) {
-        console.error('[REGISTER] Resend error (fallback):', fallbackErr)
-        emailError = fallbackErr
+      console.log('[REGISTER] Resend fallback result:', fallbackResult)
+      if (fallbackResult.error) {
+        console.error('[REGISTER] Both Resend sends failed:', fallbackResult.error)
+        return NextResponse.json({ error: 'Failed to send verification email. Please try again.' }, { status: 500 })
       }
-    }
-
-    console.log('[REGISTER] Final Resend result:', { success: !emailError, error: emailError })
-
-    if (emailError) {
-      console.error('[REGISTER] Resend error:', emailError)
-      return NextResponse.json({ error: 'Failed to send verification email' }, { status: 500 })
     }
 
     console.log('[REGISTER] Email sent successfully')

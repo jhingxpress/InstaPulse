@@ -35,11 +35,8 @@ export async function POST(req: NextRequest) {
       .update({ used: true })
       .eq('id', record.id)
 
-    // Mark user as verified in public.users
+    // Mark user as verified — this unblocks login
     await db.from('users').update({ email_verified: true }).eq('id', record.user_id)
-
-    // Confirm user in Supabase auth so signInWithPassword works
-    await db.auth.admin.updateUserById(record.user_id, { email_confirm: true })
 
     return NextResponse.json({ success: true })
   } catch (err) {

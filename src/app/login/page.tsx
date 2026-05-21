@@ -43,6 +43,12 @@ export default function LoginPage() {
         throw new Error('Account not found. Please contact support.')
       }
 
+      if (profile.role === 'user' && !profile.email_verified) {
+        await supabase().auth.signOut()
+        setUnverifiedEmail(email)
+        throw new Error('Please verify your email before logging in. Check your inbox.')
+      }
+
       if (profile.role === 'superadmin') {
         router.push('/superadmin')
       } else if (profile.role === 'admin') {
