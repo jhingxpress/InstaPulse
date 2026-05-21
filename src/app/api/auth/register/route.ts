@@ -38,18 +38,36 @@ export async function POST(req: NextRequest) {
 
     console.log('[REGISTER] Supabase create user result:', { success: !createError, error: createError?.message })
 
+    let userId: string
+
     if (createError) {
-      if (createError.message?.toLowerCase().includes('already registered') ||
-          createError.message?.toLowerCase().includes('already been registered') ||
-          createError.message?.toLowerCase().includes('duplicate')) {
+      const msg = createError.message?.toLowerCase() ?? ''
+
+      if (msg.includes('already registered') || msg.includes('already been registered') || msg.includes('duplicate')) {
         return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 })
       }
-      console.error('[REGISTER] Supabase create error:', createError)
-      return NextResponse.json({ error: createError.message }, { status: 400 })
+
+      if (msg.includes('error sending confirmation email') || msg.includes('sending confirmation')) {
+        // Supabase tried its own SMTP and failed — but the user WAS created.
+        // Recover by looking up the created user and continuing with our Resend flow.
+        console.warn('[REGISTER] Supabase SMTP failed — recovering created user by email...')
+        const { data: listData } = await db.auth.admin.listUsers()
+        const found = listData?.users?.find((u: any) => u.email === email)
+        if (!found) {
+          console.error('[REGISTER] User not found after SMTP error')
+          return NextResponse.json({ error: 'Registration failed. Please try again.' }, { status: 500 })
+        }
+        userId = found.id
+        console.log('[REGISTER] Recovered user ID:', userId)
+      } else {
+        console.error('[REGISTER] Supabase create error:', createError)
+        return NextResponse.json({ error: createError.message }, { status: 400 })
+      }
+    } else {
+      userId = authData.user.id
     }
 
-    const userId = authData.user.id
-    console.log('[REGISTER] User created, ID:', userId)
+    console.log('[REGISTER] User ready, ID:', userId)
 
     // Wait briefly for the handle_new_user trigger to create public.users
     await new Promise(r => setTimeout(r, 600))
