@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare } from 'lucide-react'
+import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare, AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import PackageModal from '@/components/PackageModal'
 import PaymentModal from '@/components/PaymentModal'
@@ -21,6 +21,13 @@ export default function ClientDashboard() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedPackage, setSelectedPackage] = useState<any>(null)
   const [unreadSupportCount, setUnreadSupportCount] = useState(0)
+  const [profile, setProfile] = useState<any>(null)
+  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
+  const [settingsForm, setSettingsForm] = useState({ full_name: '', phone: '', address: '' })
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
+  const [settingsSuccess, setSettingsSuccess] = useState('')
   const lastActivityRef = useRef(Date.now())
 
   const fetchUnreadSupport = useCallback(async (userId: string) => {
@@ -67,6 +74,20 @@ export default function ClientDashboard() {
           })
         }
       }
+      const { data: userProfile } = await (supabase() as any)
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      if (userProfile) {
+        setProfile(userProfile)
+        setSettingsForm({
+          full_name: userProfile.full_name || '',
+          phone: userProfile.phone || '',
+          address: userProfile.address || '',
+        })
+      }
+
       await fetchUnreadSupport(user.id)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -114,13 +135,71 @@ export default function ClientDashboard() {
     setActiveTab('orders')
   }
 
-  const handleCancelOrder = async (orderId: string) => {
-    if (!confirm('Are you sure you want to cancel this order?')) return
-    await (supabase() as any)
-      .from('orders')
-      .update({ status: 'cancelled' })
-      .eq('id', orderId)
-    fetchDashboardData()
+  const handleCancelOrder = (orderId: string) => {
+    setCancelOrderId(orderId)
+  }
+
+  const handleConfirmCancel = async () => {
+    if (!cancelOrderId) return
+    setCancelling(true)
+    try {
+      const { error } = await (supabase() as any)
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', cancelOrderId)
+      if (error) console.error('Cancel order error:', error)
+      else fetchDashboardData()
+    } finally {
+      setCancelling(false)
+      setCancelOrderId(null)
+    }
+  }
+
+  const handleSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSettingsError('')
+    setSettingsSuccess('')
+
+    if (profile?.updated_at && profile?.created_at) {
+      const isFirstEdit = Math.abs(
+        new Date(profile.updated_at).getTime() - new Date(profile.created_at).getTime()
+      ) < 5 * 60 * 1000
+      if (!isFirstEdit) {
+        const daysSince = (Date.now() - new Date(profile.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+        if (daysSince < 15) {
+          const nextEdit = new Date(new Date(profile.updated_at).getTime() + 15 * 24 * 60 * 60 * 1000)
+          setSettingsError(`You can only edit your information once every 15 days. Next edit available on ${nextEdit.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`)
+          return
+        }
+      }
+    }
+
+    setSettingsSaving(true)
+    try {
+      const { error } = await (supabase() as any)
+        .from('users')
+        .update({
+          full_name: settingsForm.full_name,
+          phone: settingsForm.phone,
+          address: settingsForm.address,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+
+      if (error) {
+        setSettingsError('Failed to save changes. Please try again.')
+      } else {
+        await supabase().auth.updateUser({
+          data: { full_name: settingsForm.full_name, phone: settingsForm.phone, address: settingsForm.address },
+        })
+        setSettingsSuccess('Your information has been updated successfully.')
+        fetchDashboardData()
+      }
+    } catch {
+      setSettingsError('An unexpected error occurred.')
+    } finally {
+      setSettingsSaving(false)
+    }
   }
 
   const handleLogout = async () => {
@@ -154,6 +233,44 @@ export default function ClientDashboard() {
         onBack={() => { setShowPaymentModal(false); setShowPackageModal(true) }}
         onSuccess={handlePaymentSuccess}
       />
+
+      {cancelOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => !cancelling && setCancelOrderId(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10"
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Cancel Order</h3>
+            </div>
+            <p className="text-gray-600 mb-6">Are you sure you want to cancel this order? This action cannot be undone.</p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setCancelOrderId(null)}
+                disabled={cancelling}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+              >
+                No, Keep It
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelling}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors flex items-center justify-center space-x-2"
+              >
+                {cancelling
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /><span>Cancelling...</span></>
+                  : <span>Yes, Cancel</span>
+                }
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
@@ -391,54 +508,100 @@ export default function ClientDashboard() {
               )}
 
               {/* SETTINGS TAB */}
-              {activeTab === 'settings' && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-bold text-navy-900">Account Settings</h2>
-                  <div className="bg-white rounded-xl shadow-lg p-6">
-                    <form className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                        <input
-                          type="text"
-                          defaultValue={user?.user_metadata?.full_name || ''}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
-                        />
+              {activeTab === 'settings' && (() => {
+                const isFirstEdit = !profile?.updated_at || !profile?.created_at ||
+                  Math.abs(new Date(profile.updated_at).getTime() - new Date(profile.created_at).getTime()) < 5 * 60 * 1000
+                const daysSinceEdit = profile?.updated_at
+                  ? (Date.now() - new Date(profile.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+                  : 999
+                const canEdit = isFirstEdit || daysSinceEdit >= 15
+                const nextEditDate = profile?.updated_at
+                  ? new Date(new Date(profile.updated_at).getTime() + 15 * 24 * 60 * 60 * 1000)
+                  : null
+                return (
+                  <div className="space-y-6">
+                    <h2 className="text-2xl font-bold text-navy-900">Account Settings</h2>
+
+                    {!canEdit && nextEditDate && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+                        <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-yellow-800">
+                          You can only edit your information once every 15 days. Next edit available on{' '}
+                          <strong>{nextEditDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong>.
+                        </p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input
-                          type="email"
-                          defaultValue={user?.email || ''}
-                          disabled
-                          className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 outline-none text-gray-500"
-                        />
+                    )}
+
+                    {settingsError && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
+                        <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-800">{settingsError}</p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                        <input
-                          type="tel"
-                          defaultValue={user?.user_metadata?.phone || ''}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
-                        />
+                    )}
+
+                    {settingsSuccess && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start space-x-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-green-800">{settingsSuccess}</p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                        <input
-                          type="text"
-                          defaultValue={user?.user_metadata?.address || ''}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
-                      >
-                        Save Changes
-                      </button>
-                    </form>
+                    )}
+
+                    <div className="bg-white rounded-xl shadow-lg p-6">
+                      <form onSubmit={handleSettingsSubmit} className="space-y-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                          <input
+                            type="text"
+                            value={settingsForm.full_name}
+                            onChange={e => setSettingsForm(f => ({ ...f, full_name: e.target.value }))}
+                            disabled={!canEdit}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                          <input
+                            type="email"
+                            value={user?.email || ''}
+                            disabled
+                            className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 outline-none text-gray-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                          <input
+                            type="tel"
+                            value={settingsForm.phone}
+                            onChange={e => setSettingsForm(f => ({ ...f, phone: e.target.value }))}
+                            disabled={!canEdit}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                          <input
+                            type="text"
+                            value={settingsForm.address}
+                            onChange={e => setSettingsForm(f => ({ ...f, address: e.target.value }))}
+                            disabled={!canEdit}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={!canEdit || settingsSaving}
+                          className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                        >
+                          {settingsSaving
+                            ? <><Loader2 className="h-4 w-4 animate-spin" /><span>Saving...</span></>
+                            : <span>Save Changes</span>
+                          }
+                        </button>
+                      </form>
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
             </motion.main>
           </div>
         </div>
