@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Shield, Mail, RefreshCw, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 
-export default function VerifyPendingPage() {
+function VerifyPendingContent() {
   const searchParams = useSearchParams()
   const emailParam = searchParams.get('email') || ''
   const [resending, setResending] = useState(false)
@@ -95,5 +95,13 @@ export default function VerifyPendingPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function VerifyPendingPage() {
+  return (
+    <Suspense>
+      <VerifyPendingContent />
+    </Suspense>
   )
 }
