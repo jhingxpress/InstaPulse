@@ -95,7 +95,7 @@ export default function Home() {
             <h2 className="text-3xl sm:text-4xl font-bold text-navy-900 mb-8 text-center">
               Advanced Emergency Alert & Monitoring Solution
             </h2>
-            <div className="prose prose-lg text-gray-600">
+            <div className="prose prose-lg text-gray-600 text-center">
               <p className="mb-4">
                 InstaPulse is an advanced emergency alert and monitoring solution that helps
                 improve public safety through real-time communication and rapid response technology.
@@ -143,7 +143,7 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="max-w-4xl mx-auto"
           >
-            <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl p-8 md:p-12 border border-white/20">
+            <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl p-8 md:p-12 border border-white/20 text-center">
               <p className="text-lg text-gray-700 leading-relaxed mb-6">
                 InstaPulse is a smart emergency alert and monitoring system designed to improve public safety through rapid communication and real-time monitoring technology.
               </p>
