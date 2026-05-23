@@ -257,12 +257,13 @@ export default function ContactPage() {
 
               {/* Google Map */}
               <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div className="p-6">
-                  <h2 className="text-xl font-bold text-navy-900 mb-4">Find Us on Map</h2>
+                <div className="p-6 pb-4">
+                  <h2 className="text-xl font-bold text-navy-900 mb-1">Find Us on Map</h2>
+                  <p className="text-sm text-gray-500">Digos City, Davao del Sur, Philippines</p>
                 </div>
-                <div className="h-64 bg-gray-200">
+                <div className="h-72">
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.123456789!2d125.6123456!3d7.0738901!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zN8KwMDQnMjYuMCJTIDEyNcKwMzYnNDQuNCJF!5e0!3m2!1sen!2sph!4v1234567890"
+                    src="https://maps.google.com/maps?q=6.753052349431254,125.36105930450685&z=17&output=embed"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}
@@ -270,6 +271,16 @@ export default function ContactPage() {
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                   />
+                </div>
+                <div className="px-6 py-3 border-t border-gray-100">
+                  <a
+                    href="https://maps.google.com/?q=6.753052349431254,125.36105930450685"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Open in Google Maps →
+                  </a>
                 </div>
               </div>
             </motion.div>
