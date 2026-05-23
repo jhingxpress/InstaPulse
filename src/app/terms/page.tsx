@@ -63,7 +63,20 @@ export default function TermsPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-navy-900 mb-4">7. Limitation of Liability</h2>
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">7. Maintenance and Support</h2>
+            <p className="mb-4">
+              Depending on the selected package, InstaPulse may provide system monitoring support, technical assistance, software updates, and preventive maintenance. This includes ongoing system performance checks, troubleshooting, and scheduled inspections to ensure all installed devices remain functional and reliable.
+            </p>
+            <p className="mb-4">
+              All subscribed services are subject to a mandatory monthly maintenance fee of <strong>₱500.00 (Five Hundred Pesos)</strong> per system. This fee covers continuous system monitoring, technical support, software maintenance, and periodic physical checking of installed devices and equipment.
+            </p>
+            <p>
+              Failure to settle the required maintenance fee may result in temporary suspension of system monitoring services, limited access, or service interruption until outstanding balances are fully paid.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">8. Limitation of Liability</h2>
             <p>
               InstaPulse shall not be liable for any indirect, incidental, special, or consequential damages 
               arising from the use or inability to use our services. Our total liability shall not exceed the 
@@ -72,7 +85,7 @@ export default function TermsPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-navy-900 mb-4">8. Termination</h2>
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">9. Termination</h2>
             <p>
               We reserve the right to suspend or terminate services for violation of these terms, 
               fraudulent activity, or at our discretion with appropriate notice.
@@ -80,7 +93,7 @@ export default function TermsPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-navy-900 mb-4">9. Changes to Terms</h2>
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">10. Changes to Terms</h2>
             <p>
               We may update these terms from time to time. Continued use of our services after changes 
               constitutes acceptance of the updated terms.
@@ -88,7 +101,7 @@ export default function TermsPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-navy-900 mb-4">10. Contact Us</h2>
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">11. Contact Us</h2>
             <p>
               For questions about these Terms and Conditions, please contact us through our 
               <Link href="/contact" className="text-red-600 hover:text-red-700">contact page</Link> or 
@@ -97,7 +110,7 @@ export default function TermsPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-navy-900 mb-4">11. Governing Law</h2>
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">12. Governing Law</h2>
             <p>
               These Terms and Conditions are governed by the laws of the Republic of the Philippines. 
               Any disputes shall be resolved in the appropriate courts of the Philippines.
