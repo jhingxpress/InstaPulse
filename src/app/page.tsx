@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
-import { Shield, ShieldAlert, Users, Clock, CheckCircle, ArrowRight, AlertTriangle, Zap, Camera, MapPin, Radio, ShieldCheck } from 'lucide-react'
+import { Shield, ShieldAlert, Users, Clock, CheckCircle, ArrowRight, AlertTriangle, Zap, Camera, MapPin, Radio, ShieldCheck, Monitor, Truck, ChevronRight } from 'lucide-react'
 
 export default function Home() {
   const benefits = [
@@ -160,7 +160,7 @@ export default function Home() {
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full h-full bg-gradient-to-b from-red-600/5 to-navy-900/5"></div>
         <div className="absolute top-40 left-1/4 w-96 h-96 bg-red-600/5 rounded-full blur-3xl"></div>
         <div className="absolute bottom-40 right-1/4 w-96 h-96 bg-navy-900/5 rounded-full blur-3xl"></div>
-        
+
         <div className="max-w-7xl mx-auto relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -169,138 +169,89 @@ export default function Home() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl sm:text-4xl font-bold text-navy-900 mb-4">
-              How It Works
-            </h2>
-            <p className="text-xl text-gray-600">
-              A seamless 4-step process for rapid emergency response
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy-900 mb-4">How It Works</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              A simple 6-step emergency response process designed to help authorities respond faster during emergencies.
             </p>
             <div className="w-24 h-1 bg-red-600 mx-auto mt-4"></div>
           </motion.div>
 
-          <div className="relative">
-            {/* Desktop connecting line */}
-            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-red-600 to-transparent transform -translate-y-1/2 z-0"></div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
-              {/* Step 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                step: '01', icon: AlertTriangle, bg: 'bg-red-600', shadow: 'shadow-red-600/30', glow: 'from-red-600/5',
+                title: 'Emergency Alert Triggered',
+                desc: 'The user presses the InstaPulse Emergency Button or Mobile App to instantly send an emergency alert.',
+              },
+              {
+                step: '02', icon: Monitor, bg: 'bg-blue-600', shadow: 'shadow-blue-600/30', glow: 'from-blue-600/5',
+                title: 'Alert Received by Command Center',
+                desc: 'The InstaPulse monitoring dashboard receives the alert and displays incident information for immediate assessment.',
+              },
+              {
+                step: '03', icon: Camera, bg: 'bg-purple-600', shadow: 'shadow-purple-600/30', glow: 'from-purple-600/5',
+                title: 'CCTV Verification',
+                desc: 'Operators verify the incident through integrated CCTV cameras and live video feeds.',
+              },
+              {
+                step: '04', icon: MapPin, bg: 'bg-green-600', shadow: 'shadow-green-600/30', glow: 'from-green-600/5',
+                title: 'Location Pinpointing',
+                desc: 'GPS coordinates are automatically captured and displayed on Google Maps for accurate location tracking.',
+              },
+              {
+                step: '05', icon: Radio, bg: 'bg-orange-500', shadow: 'shadow-orange-500/30', glow: 'from-orange-500/5',
+                title: 'Responder Notification',
+                desc: 'Nearest available responders are instantly notified and provided with incident details.',
+              },
+              {
+                step: '06', icon: Truck, bg: 'bg-navy-900', shadow: 'shadow-navy-900/30', glow: 'from-navy-900/5',
+                title: 'Unit Deployment',
+                desc: 'Responding units are dispatched to the emergency location for rapid assistance.',
+              },
+            ].map((item, index) => (
               <motion.div
+                key={item.step}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                whileHover={{ scale: 1.05, y: -5 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                whileHover={{ scale: 1.03, y: -5 }}
                 className="relative"
               >
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 h-full relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-600/5 to-transparent"></div>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${item.glow} to-transparent`}></div>
                   <div className="relative">
-                    <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      className="inline-flex items-center justify-center w-16 h-16 bg-red-600 rounded-full mb-6 shadow-lg shadow-red-600/30"
-                    >
-                      <Radio className="h-8 w-8 text-white" />
-                    </motion.div>
-                    <h3 className="text-xl font-bold text-navy-900 mb-3">Alert System</h3>
-                    <p className="text-gray-600 text-sm">
-                      Emergency alert buttons instantly notify the monitoring system during emergencies.
-                    </p>
-                    <div className="hidden lg:block absolute -right-4 top-1/2 transform -translate-y-1/2 z-20">
-                      <ArrowRight className="h-6 w-6 text-red-600" />
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`inline-flex items-center justify-center w-14 h-14 ${item.bg} rounded-full shadow-lg ${item.shadow}`}>
+                        <item.icon className="h-7 w-7 text-white" />
+                      </div>
+                      <span className="text-5xl font-black text-gray-100 select-none">{item.step}</span>
                     </div>
+                    <h3 className="text-lg font-bold text-navy-900 mb-2">{item.title}</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
-                <div className="hidden lg:block absolute top-1/2 -right-8 w-8 h-8 bg-red-600 rounded-full transform -translate-y-1/2 z-20 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">1</span>
-                </div>
               </motion.div>
-
-              {/* Step 2 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="relative"
-              >
-                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 h-full relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-navy-900/5 to-transparent"></div>
-                  <div className="relative">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-navy-900 rounded-full mb-6 shadow-lg shadow-navy-900/30">
-                      <Camera className="h-8 w-8 text-white" />
-                    </div>
-                    <h3 className="text-xl font-bold text-navy-900 mb-3">CCTV Monitoring</h3>
-                    <p className="text-gray-600 text-sm">
-                      Integrated CCTV cameras provide real-time monitoring and incident recording.
-                    </p>
-                    <div className="hidden lg:block absolute -right-4 top-1/2 transform -translate-y-1/2 z-20">
-                      <ArrowRight className="h-6 w-6 text-red-600" />
-                    </div>
-                  </div>
-                </div>
-                <div className="hidden lg:block absolute top-1/2 -right-8 w-8 h-8 bg-navy-900 rounded-full transform -translate-y-1/2 z-20 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">2</span>
-                </div>
-              </motion.div>
-
-              {/* Step 3 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="relative"
-              >
-                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 h-full relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-600/5 to-transparent"></div>
-                  <div className="relative">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-red-600 rounded-full mb-6 shadow-lg shadow-red-600/30">
-                      <MapPin className="h-8 w-8 text-white" />
-                    </div>
-                    <h3 className="text-xl font-bold text-navy-900 mb-3">GPS Enabled Tracking</h3>
-                    <p className="text-gray-600 text-sm">
-                      GPS technology helps responders quickly identify the exact incident location.
-                    </p>
-                    <div className="hidden lg:block absolute -right-4 top-1/2 transform -translate-y-1/2 z-20">
-                      <ArrowRight className="h-6 w-6 text-red-600" />
-                    </div>
-                  </div>
-                </div>
-                <div className="hidden lg:block absolute top-1/2 -right-8 w-8 h-8 bg-red-600 rounded-full transform -translate-y-1/2 z-20 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">3</span>
-                </div>
-              </motion.div>
-
-              {/* Step 4 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="relative"
-              >
-                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 h-full relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-navy-900/5 to-transparent"></div>
-                  <div className="relative">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-navy-900 rounded-full mb-6 shadow-lg shadow-navy-900/30">
-                      <ShieldCheck className="h-8 w-8 text-white" />
-                    </div>
-                    <h3 className="text-xl font-bold text-navy-900 mb-3">Emergency Responders</h3>
-                    <p className="text-gray-600 text-sm">
-                      Authorities and responders receive instant notifications for rapid emergency coordination.
-                    </p>
-                  </div>
-                </div>
-                <div className="hidden lg:block absolute top-1/2 -right-8 w-8 h-8 bg-navy-900 rounded-full transform -translate-y-1/2 z-20 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">4</span>
-                </div>
-              </motion.div>
-            </div>
+            ))}
           </div>
+
+          {/* View More Details CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-center mt-12"
+          >
+            <p className="text-gray-500 mb-4">Want to see the full step-by-step process with images and details?</p>
+            <Link
+              href="/how-it-works"
+              className="inline-flex items-center space-x-2 bg-red-600 text-white px-8 py-4 rounded-lg hover:bg-red-700 transition-colors font-semibold text-lg"
+            >
+              <span>View More Details</span>
+              <ChevronRight className="h-5 w-5" />
+            </Link>
+          </motion.div>
         </div>
       </section>
 
@@ -390,6 +341,11 @@ export default function Home() {
                 <li>
                   <Link href="/" className="hover:text-white transition-colors">
                     Home
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/how-it-works" className="hover:text-white transition-colors">
+                    How It Works
                   </Link>
                 </li>
                 <li>
