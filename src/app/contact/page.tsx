@@ -99,7 +99,7 @@ export default function ContactPage() {
                     onChange={handleChange}
                     required
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="John Doe"
+                    placeholder="Juan Dela Cruz"
                   />
                 </div>
 
@@ -130,7 +130,7 @@ export default function ContactPage() {
                     value={formData.phone}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="+63 912 345 6789"
+                    placeholder="+63 939 920 8711"
                   />
                 </div>
 
@@ -208,8 +208,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-navy-900 mb-1">Phone</h3>
-                      <p className="text-gray-600">+63 912 345 6789</p>
-                      <p className="text-gray-600">+63 (082) 123 4567</p>
+                      <p className="text-gray-600">+63 939 920 8711</p>
                     </div>
                   </div>
 
@@ -316,7 +315,7 @@ export default function ContactPage() {
               <h3 className="font-semibold mb-4">Contact</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>admin@instapulse.site</li>
-                <li>+63 912 345 6789</li>
+                <li>+63 939 920 8711</li>
               </ul>
             </div>
           </div>

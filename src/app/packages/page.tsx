@@ -295,7 +295,7 @@ export default function PackagesPage() {
               <h3 className="font-semibold mb-4">Contact</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>admin@instapulse.site</li>
-                <li>+63 912 345 6789</li>
+                <li>+63 939 920 8711</li>
               </ul>
             </div>
           </div>

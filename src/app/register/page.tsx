@@ -133,7 +133,7 @@ export default function RegisterPage() {
                       onChange={handleChange}
                       required
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                      placeholder="John Doe"
+                      placeholder="Juan Dela Cruz"
                     />
                   </div>
                 </div>
@@ -152,7 +152,7 @@ export default function RegisterPage() {
                       onChange={handleChange}
                       required
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                      placeholder="+63 912 345 6789"
+                      placeholder="+63 939 920 8711"
                     />
                   </div>
                 </div>
