@@ -252,9 +252,8 @@ export default function PackagesPage() {
             <h2 className="text-3xl font-bold text-white mb-4">
               Need a Custom Solution?
             </h2>
-            <p className="text-xl text-gray-300 mb-8">
-              Contact us for enterprise solutions and custom security packages tailored
-              to your specific needs.
+            <p className="text-base sm:text-lg text-gray-300 mb-8 max-w-xl mx-auto">
+              Contact us for enterprise solutions and custom security packages tailored to your specific needs.
             </p>
             <Link
               href="/contact"
