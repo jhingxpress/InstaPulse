@@ -95,7 +95,7 @@ export default function Home() {
             <h2 className="text-3xl sm:text-4xl font-bold text-navy-900 mb-8 text-center">
               Advanced Emergency Alert & Monitoring Solution
             </h2>
-            <div className="prose prose-lg text-gray-600 text-justify">
+            <div className="prose prose-lg text-gray-600">
               <p className="mb-4">
                 InstaPulse is an advanced emergency alert and monitoring solution that helps
                 improve public safety through real-time communication and rapid response technology.
