@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
+import Image from 'next/image'
 import {
   Shield, AlertTriangle, Monitor, Camera, MapPin,
   Radio, Truck, ArrowDown, ChevronRight,
@@ -17,6 +18,7 @@ const steps = [
     icon: AlertTriangle,
     accent: 'red',
     imageLabel: 'Emergency Button / Mobile Alert Illustration',
+    image: '/images/step 1.png',
   },
   {
     number: '02',
@@ -26,6 +28,7 @@ const steps = [
     icon: Monitor,
     accent: 'blue',
     imageLabel: 'Monitoring Center / Command Center Dashboard',
+    image: '/images/step 2.png',
   },
   {
     number: '03',
@@ -35,6 +38,7 @@ const steps = [
     icon: Camera,
     accent: 'purple',
     imageLabel: 'CCTV Monitoring Screen',
+    image: '/images/step 3.png',
   },
   {
     number: '04',
@@ -44,6 +48,7 @@ const steps = [
     icon: MapPin,
     accent: 'green',
     imageLabel: 'Google Maps Location Pin Visualization',
+    image: '/images/step 4.png',
   },
   {
     number: '05',
@@ -53,6 +58,7 @@ const steps = [
     icon: Radio,
     accent: 'orange',
     imageLabel: 'Police / Emergency Responders Receiving Alerts',
+    image: '/images/step 5.png',
   },
   {
     number: '06',
@@ -62,6 +68,7 @@ const steps = [
     icon: Truck,
     accent: 'navy',
     imageLabel: 'Police Vehicle / Emergency Response Deployment',
+    image: '/images/step 6.png',
   },
 ]
 
@@ -149,31 +156,17 @@ export default function HowItWorksPage() {
                       <motion.div
                         whileHover={{ y: -6, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)' }}
                         transition={{ duration: 0.3 }}
-                        className={`relative rounded-2xl shadow-lg overflow-hidden ${accent.light} border-2 ${accent.border} flex flex-col items-center justify-center p-12 aspect-video`}
+                        className="relative rounded-2xl shadow-lg overflow-hidden aspect-video"
                       >
-                        {/*
-                          IMAGE PLACEHOLDER
-                          Replace this block with an <Image> component when you have actual images:
-                          <Image
-                            src={`/images/step-${step.number}.jpg`}
-                            alt={step.imageLabel}
-                            fill
-                            className="object-cover"
-                          />
-                        */}
-                        <motion.div
-                          whileHover={{ scale: 1.1 }}
-                          transition={{ duration: 0.3 }}
-                          className={`inline-flex items-center justify-center w-28 h-28 ${accent.bg} rounded-full mb-5 shadow-lg`}
-                        >
-                          <Icon className="h-14 w-14 text-white" />
-                        </motion.div>
-                        <p className="text-sm font-medium text-gray-400 text-center max-w-xs">
-                          {step.imageLabel}
-                        </p>
-
+                        <Image
+                          src={step.image}
+                          alt={step.imageLabel}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
                         {/* Step number watermark */}
-                        <span className={`absolute top-4 right-5 text-8xl font-black leading-none ${accent.text} opacity-10 select-none pointer-events-none`}>
+                        <span className="absolute top-4 right-5 text-8xl font-black leading-none text-white opacity-20 select-none pointer-events-none drop-shadow-lg">
                           {step.number}
                         </span>
                       </motion.div>
