@@ -217,12 +217,22 @@ export default function PackagesPage() {
                   <td className="text-center py-4 px-4"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="text-center py-4 px-4"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
-                <tr>
+                <tr className="border-b border-gray-100">
                   <td className="py-4 px-4 text-gray-600">Professional Installation</td>
                   <td className="text-center py-4 px-4"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="text-center py-4 px-4"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="text-center py-4 px-4"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="text-center py-4 px-4"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
+                </tr>
+                <tr>
+                  <td className="py-4 px-4 text-gray-600">
+                    <span className="font-medium">Maintenance Fee</span>
+                    <p className="text-xs text-gray-400 mt-0.5">Software maintenance &amp; monthly on-site inspection</p>
+                  </td>
+                  <td className="text-center py-4 px-4 text-sm font-semibold text-gray-700">₱500/mo</td>
+                  <td className="text-center py-4 px-4 text-sm font-semibold text-gray-700">₱500/mo</td>
+                  <td className="text-center py-4 px-4 text-sm font-semibold text-red-600">₱500/mo</td>
+                  <td className="text-center py-4 px-4 text-sm font-semibold text-gray-700">₱500/mo</td>
                 </tr>
               </tbody>
             </table>

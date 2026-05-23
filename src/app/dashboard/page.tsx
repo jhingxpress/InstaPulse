@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare, AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import PackageModal from '@/components/PackageModal'
@@ -277,10 +278,10 @@ export default function ClientDashboard() {
         <header className="bg-navy-900 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+              <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
                 <Shield className="h-8 w-8 text-red-600" />
                 <span className="text-xl font-bold">InstaPulse</span>
-              </div>
+              </Link>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
