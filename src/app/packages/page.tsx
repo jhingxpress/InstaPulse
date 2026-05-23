@@ -184,7 +184,7 @@ export default function PackagesPage() {
                   <th className="text-left py-4 px-4 font-semibold text-navy-900">Feature</th>
                   <th className="text-center py-4 px-4 font-semibold text-navy-900">Basic</th>
                   <th className="text-center py-4 px-4 font-semibold text-navy-900">Standard</th>
-                  <th className="text-center py-4 px-4 font-semibold text-red-600">Advanced</th>
+                  <th className="text-center py-4 px-4 font-semibold text-navy-900">Advanced</th>
                   <th className="text-center py-4 px-4 font-semibold text-navy-900">Enterprise</th>
                 </tr>
               </thead>
@@ -231,7 +231,7 @@ export default function PackagesPage() {
                   </td>
                   <td className="text-center py-4 px-4 text-sm font-semibold text-gray-700">₱500/mo</td>
                   <td className="text-center py-4 px-4 text-sm font-semibold text-gray-700">₱500/mo</td>
-                  <td className="text-center py-4 px-4 text-sm font-semibold text-red-600">₱500/mo</td>
+                  <td className="text-center py-4 px-4 text-sm font-semibold text-gray-700">₱500/mo</td>
                   <td className="text-center py-4 px-4 text-sm font-semibold text-gray-700">₱500/mo</td>
                 </tr>
               </tbody>
