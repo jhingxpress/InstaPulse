@@ -45,13 +45,13 @@ export default function TermsPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-navy-900 mb-4">5. User Responsibilities</h2>
-            <ul className="list-disc pl-6 space-y-2">
-              <li>Provide accurate and complete information during registration</li>
-              <li>Ensure the installation location is accessible and ready for service</li>
-              <li>Report any issues with the system promptly through our support channel</li>
-              <li>Use the security system responsibly and in accordance with applicable laws</li>
-            </ul>
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">5. Subscription Term and Renewal</h2>
+            <p className="mb-4">
+              The Client shall make a one-time payment for the selected device or chosen package. Upon full payment, InstaPulse will proceed with system installation and activation of the subscribed services.
+            </p>
+            <p>
+              Once the devices are installed and the system is activated, the Client shall be subject to a mandatory monthly maintenance fee as stated in Section 7 (Maintenance and Support) to ensure continuous system monitoring, technical support, and physical inspection of installed equipment.
+            </p>
           </section>
 
           <section className="mb-8">
