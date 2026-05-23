@@ -57,12 +57,9 @@ export default function TermsPage() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-bold text-navy-900 mb-4">5. Subscription Term and Renewal</h2>
-            <p className="mb-4">
-              The Client shall make a one-time payment for the selected device or chosen package. Upon full payment, InstaPulse will proceed with system installation and activation of the subscribed services.
-            </p>
+            <h2 className="text-2xl font-bold text-navy-900 mb-4">5. Subscription Term</h2>
             <p>
-              Once the devices are installed and the system is activated, the Client shall be subject to a mandatory monthly maintenance fee as stated in Section 7 (Maintenance and Support) to ensure continuous system monitoring, technical support, and physical inspection of installed equipment.
+              The Client shall make a one-time payment for the selected device or chosen package. Upon full payment, InstaPulse will proceed with system installation and activation of the subscribed services.
             </p>
           </section>
 
@@ -79,13 +76,13 @@ export default function TermsPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-bold text-navy-900 mb-4">7. Maintenance and Support</h2>
             <p className="mb-4">
-              Depending on the selected package, InstaPulse may provide system monitoring support, technical assistance, software updates, and preventive maintenance. This includes ongoing system performance checks, troubleshooting, and scheduled inspections to ensure all installed devices remain functional and reliable.
+              InstaPulse provides ongoing system monitoring, technical assistance, software updates, and preventive maintenance to ensure the reliability and proper functioning of all installed devices. This includes system performance checks, troubleshooting, and monthly on-site inspection of installed equipment.
             </p>
             <p className="mb-4">
-              All subscribed services are subject to a mandatory monthly maintenance fee of <strong>₱500.00 (Five Hundred Pesos)</strong> per system. This fee covers continuous system monitoring, technical support, software maintenance, and periodic physical checking of installed devices and equipment.
+              A mandatory monthly maintenance fee of <strong>₱500.00 (Five Hundred Pesos)</strong> per system shall be charged. This fee covers system monitoring, technical support, software maintenance, and monthly on-site inspection of installed equipment.
             </p>
             <p>
-              Failure to settle the required maintenance fee may result in temporary suspension of system monitoring services, limited access, or service interruption until outstanding balances are fully paid.
+              Failure to settle the required maintenance fee may result in temporary suspension of system monitoring services, restricted access, or interruption of service until all outstanding balances are fully paid.
             </p>
           </section>
 
