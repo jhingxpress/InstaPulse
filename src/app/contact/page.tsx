@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
-import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send } from 'lucide-react'
+import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send, Camera } from 'lucide-react'
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -252,6 +252,26 @@ export default function ContactPage() {
                     <MessageCircle className="h-6 w-6 text-blue-600" />
                     <span className="font-medium text-navy-900">Messenger</span>
                   </a>
+
+                  <a
+                    href="https://t.me/instapulse"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Send className="h-6 w-6 text-blue-600" />
+                    <span className="font-medium text-navy-900">Telegram</span>
+                  </a>
+
+                  <a
+                    href="https://instagram.com/instapulse"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-3 p-4 bg-pink-50 rounded-lg hover:bg-pink-100 transition-colors"
+                  >
+                    <Camera className="h-6 w-6 text-pink-600" />
+                    <span className="font-medium text-navy-900">Instagram</span>
+                  </a>
                 </div>
               </div>
 
@@ -305,21 +325,10 @@ export default function ContactPage() {
             <div>
               <h3 className="font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link href="/" className="hover:text-white transition-colors">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/packages" className="hover:text-white transition-colors">
-                    Packages
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-white transition-colors">
-                    Contact
-                  </Link>
-                </li>
+                <li><Link href="/" className="hover:text-white transition-colors">Home</Link></li>
+                <li><Link href="/how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
+                <li><Link href="/packages" className="hover:text-white transition-colors">Packages</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
               </ul>
             </div>
             <div>
