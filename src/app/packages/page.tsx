@@ -1,16 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Check, ArrowRight, Camera, Radio } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import PackageCard from '@/components/PackageCard'
+import PackageDetailView from '@/components/PackageDetailView'
 
 export default function PackagesPage() {
   const router = useRouter()
   const [authenticated, setAuthenticated] = useState(false)
+  const [selectedPackage, setSelectedPackage] = useState<any>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -25,6 +28,13 @@ export default function PackagesPage() {
       router.push('/register')
     } else {
       router.push(`/checkout?package=${pkgId}`)
+    }
+  }
+
+  const handleChoosePackage = () => {
+    if (selectedPackage) {
+      handleBuyNow(selectedPackage.id)
+      setSelectedPackage(null)
     }
   }
 
@@ -111,52 +121,17 @@ export default function PackagesPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {packages.map((pkg, index) => (
-              <motion.div
+              <PackageCard
                 key={pkg.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, y: -10 }}
-                className={`relative rounded-2xl p-8 shadow-lg ${
-                  pkg.featured
-                    ? 'bg-gradient-to-b from-red-600 to-red-700 text-white'
-                    : 'bg-white'
-                }`}
-              >
-                {pkg.featured && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-yellow-400 text-navy-900 px-4 py-1 rounded-full text-sm font-bold">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-
-                <h3 className="text-2xl font-bold mb-2">{pkg.name}</h3>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold">₱{pkg.price.toLocaleString()}</span>
-                </div>
-
-                <ul className="space-y-4 mb-8">
-                  {pkg.items.map((item) => (
-                    <li key={item.name} className="flex items-center space-x-3">
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      <span className="flex-1">{pluralize(item.name, item.quantity)}</span>
-                      <span className="font-semibold">({item.quantity})</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={() => handleBuyNow(pkg.id)}
-                  className={`block w-full py-3 rounded-lg font-semibold text-center transition-colors ${
-                    pkg.featured
-                      ? 'bg-white text-red-600 hover:bg-gray-100'
-                      : 'bg-red-600 text-white hover:bg-red-700'
-                  }`}
-                >
-                  {authenticated ? 'Buy Now' : 'Get Started'}
-                </button>
-              </motion.div>
+                id={pkg.id}
+                name={pkg.name}
+                price={pkg.price}
+                items={pkg.items}
+                featured={pkg.featured}
+                isSelected={selectedPackage?.id === pkg.id}
+                onSelect={() => setSelectedPackage(pkg)}
+                pluralize={pluralize}
+              />
             ))}
           </div>
         </div>
@@ -302,6 +277,18 @@ export default function PackagesPage() {
           </div>
         </div>
       </footer>
+
+      {/* Package Detail Modal */}
+      <AnimatePresence>
+        {selectedPackage && (
+          <PackageDetailView
+            package={selectedPackage}
+            onClose={() => setSelectedPackage(null)}
+            onChoosePackage={handleChoosePackage}
+            pluralize={pluralize}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
