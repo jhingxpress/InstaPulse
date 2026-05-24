@@ -200,7 +200,7 @@ function ContactPageContent() {
             </a>
 
             <a
-              href="https://t.me/instapulse"
+              href="https://t.me/instapulsedavsur"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
