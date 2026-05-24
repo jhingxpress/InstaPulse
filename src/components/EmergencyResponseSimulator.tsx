@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, Radio, Camera, Monitor, Truck, CheckCircle, Play, RotateCcw, Activity } from 'lucide-react'
+import { AlertTriangle, Radio, Camera, Monitor, ShieldCheck, CheckCircle, Play, RotateCcw, Activity } from 'lucide-react'
 import SimulationProgressBar from './SimulationProgressBar'
 import SimulationResult from './SimulationResult'
 
@@ -21,7 +21,7 @@ export default function EmergencyResponseSimulator({ onChoosePackage }: Emergenc
     { id: 2, time: '00:01', title: 'Alert Transmitted', icon: Activity, color: 'bg-orange-500', signal: true },
     { id: 3, time: '00:02', title: 'CCTV Monitoring Active', icon: Camera, color: 'bg-yellow-500', live: true },
     { id: 4, time: '00:03', title: 'Dashboard Alert Received', icon: Monitor, color: 'bg-blue-500', popup: true },
-    { id: 5, time: '00:05', title: 'Emergency Response Notification Sent', icon: Truck, color: 'bg-indigo-500', route: true },
+    { id: 5, time: '00:05', title: 'Emergency Response Notification Sent', icon: ShieldCheck, color: 'bg-indigo-500', route: true },
     { id: 6, time: '00:07', title: 'Incident Under Monitoring', icon: CheckCircle, color: 'bg-green-500', success: true },
   ]
 
