@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import InstallationTimeline from './InstallationTimeline'
 import BenefitChecklist from './BenefitChecklist'
 import PackageSummary from './PackageSummary'
+import PackageInclusions from './PackageInclusions'
 import EmergencyResponseSimulator from './EmergencyResponseSimulator'
 
 interface PackageItem {
@@ -69,6 +70,7 @@ export default function PackageDetailView({
             <div className="space-y-8">
               <InstallationTimeline isActive />
               <BenefitChecklist isActive />
+              <PackageInclusions isActive />
             </div>
 
             {/* Right Column */}
