@@ -8,6 +8,7 @@ import Link from 'next/link'
 function VerifyPendingContent() {
   const searchParams = useSearchParams()
   const emailParam = searchParams.get('email') || ''
+  const redirect = searchParams.get('redirect') || '/dashboard'
   const [resending, setResending] = useState(false)
   const [resendStatus, setResendStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [resendMessage, setResendMessage] = useState('')

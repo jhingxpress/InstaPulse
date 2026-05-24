@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send, Camera } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -24,13 +26,71 @@ export default function ContactPage() {
     })
   }
 
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [authenticated, setAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase().auth.getUser()
+      setAuthenticated(!!user)
+    }
+    checkAuth()
+  }, [])
+
+  useEffect(() => {
+    // Check if returning from login/register with saved form data
+    const savedData = sessionStorage.getItem('contactFormData')
+    if (savedData && authenticated) {
+      const parsed = JSON.parse(savedData)
+      setFormData(parsed)
+      sessionStorage.removeItem('contactFormData')
+      // Auto-submit after a short delay
+      setTimeout(() => {
+        handleSubmit(new Event('submit') as any)
+      }, 500)
+    }
+  }, [authenticated])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Check authentication
+    if (!authenticated) {
+      // Save form data to sessionStorage
+      sessionStorage.setItem('contactFormData', JSON.stringify(formData))
+      // Redirect to login
+      router.push('/login?redirect=/contact')
+      return
+    }
+
     setLoading(true)
 
     try {
-      // TODO: Implement form submission
-      console.log('Contact form submission:', formData)
+      const { data: { user } } = await supabase().auth.getUser()
+      if (!user) {
+        sessionStorage.setItem('contactFormData', JSON.stringify(formData))
+        router.push('/login?redirect=/contact')
+        return
+      }
+
+      // Create support ticket
+      const { error } = await (supabase() as any)
+        .from('support_tickets')
+        .insert({
+          user_id: user.id,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          subject: formData.subject,
+          message: formData.message,
+          status: 'open',
+          unread_admin: 1,
+          unread_user: 0,
+        })
+
+      if (error) throw error
+
       setSuccess(true)
       setFormData({
         name: '',

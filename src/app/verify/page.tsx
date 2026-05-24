@@ -9,6 +9,7 @@ function VerifyContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token')
+  const redirect = searchParams.get('redirect') || '/dashboard'
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
@@ -30,7 +31,7 @@ function VerifyContent() {
         const data = await res.json()
         if (res.ok && data.success) {
           setStatus('success')
-          setTimeout(() => router.push('/login'), 3000)
+          setTimeout(() => router.push(`/login?redirect=${encodeURIComponent(redirect)}`), 3000)
         } else {
           setStatus('error')
           setMessage(data.error || 'Verification failed.')
@@ -42,7 +43,7 @@ function VerifyContent() {
     }
 
     verify()
-  }, [token, router])
+  }, [token, router, redirect])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex items-center justify-center px-4">

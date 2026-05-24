@@ -1,15 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirect = searchParams.get('redirect') || '/dashboard'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -54,7 +56,8 @@ export default function LoginPage() {
       } else if (profile.role === 'admin') {
         router.push('/admin')
       } else {
-        router.push('/dashboard')
+        // Use redirect parameter if provided, otherwise go to dashboard
+        router.push(redirect)
       }
     } catch (err: any) {
       if (err.message?.toLowerCase().includes('email not confirmed')) {

@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirect = searchParams.get('redirect') || '/dashboard'
   const [formData, setFormData] = useState({
     fullname: '',
     email: '',
@@ -64,7 +66,8 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(json.error || 'Registration failed.')
 
       setSuccess(true)
-      router.push(`/verify-pending?email=${encodeURIComponent(formData.email)}`)
+      // Pass redirect parameter to verify-pending
+      router.push(`/verify-pending?email=${encodeURIComponent(formData.email)}&redirect=${encodeURIComponent(redirect)}`)
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     } finally {
