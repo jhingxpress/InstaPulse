@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -8,7 +8,7 @@ import Navigation from '@/components/Navigation'
 import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send, Camera } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
-export default function ContactPage() {
+function ContactPageContent() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -405,5 +405,13 @@ export default function ContactPage() {
         </div>
       </footer>
     </div>
+  )
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-b from-white to-gray-50"><Navigation /></div>}>
+      <ContactPageContent />
+    </Suspense>
   )
 }
