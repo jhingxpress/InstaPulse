@@ -17,8 +17,8 @@ interface PackageSummaryProps {
 export default function PackageSummary({ items, pluralize }: PackageSummaryProps) {
   const cctvCount = items.find(i => i.name === 'CCTV Camera')?.quantity || 0
   const buttonCount = items.find(i => i.name === 'Alert Button')?.quantity || 0
-  const supportLevel = cctvCount >= 4 ? 'Premium' : cctvCount >= 2 ? 'Standard' : 'Basic'
-  const coveragePercent = Math.min(100, (cctvCount * 25) + (buttonCount * 15))
+  const supportLevel = 'Standard'
+  const coveragePercent = 90
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
