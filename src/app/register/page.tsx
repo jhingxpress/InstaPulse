@@ -1,17 +1,17 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
-import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check, Eye, EyeOff, X } from 'lucide-react'
 
 function RegisterPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
+
   const [formData, setFormData] = useState({
     fullname: '',
     email: '',
@@ -20,33 +20,79 @@ function RegisterPageContent() {
     password: '',
     confirmPassword: '',
   })
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  // --- Validation rules ---
+  const validate = (data: typeof formData) => {
+    const errs: Record<string, string> = {}
+    if (!data.fullname.trim()) errs.fullname = 'Full name is required.'
+    else if (data.fullname.trim().length < 3) errs.fullname = 'Full name must be at least 3 characters.'
+
+    if (!data.phone.trim()) errs.phone = 'Phone number is required.'
+    else if (!/^(\+63|0)[0-9]{9,10}$/.test(data.phone.replace(/\s/g, '')))
+      errs.phone = 'Enter a valid Philippine phone number (e.g. 09XX XXX XXXX).'
+
+    if (!data.email.trim()) errs.email = 'Email address is required.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) errs.email = 'Enter a valid email address.'
+
+    if (!data.address.trim()) errs.address = 'Address is required.'
+    else if (data.address.trim().length < 10) errs.address = 'Please enter your complete address.'
+
+    if (!data.password) errs.password = 'Password is required.'
+    else if (data.password.length < 8) errs.password = 'Password must be at least 8 characters.'
+    else if (!/[A-Z]/.test(data.password)) errs.password = 'Password must contain at least one uppercase letter.'
+    else if (!/[0-9]/.test(data.password)) errs.password = 'Password must contain at least one number.'
+
+    if (!data.confirmPassword) errs.confirmPassword = 'Please confirm your password.'
+    else if (data.password !== data.confirmPassword) errs.confirmPassword = 'Passwords do not match.'
+
+    return errs
+  }
+
+  const fieldErrors = validate(formData)
+  const isFormValid = Object.keys(fieldErrors).length === 0
+
+  // Password strength
+  const pwChecks = {
+    length: formData.password.length >= 8,
+    upper: /[A-Z]/.test(formData.password),
+    number: /[0-9]/.test(formData.password),
+    special: /[^A-Za-z0-9]/.test(formData.password),
+  }
+  const pwStrength = Object.values(pwChecks).filter(Boolean).length
+  const pwStrengthLabel = pwStrength <= 1 ? 'Weak' : pwStrength === 2 ? 'Fair' : pwStrength === 3 ? 'Good' : 'Strong'
+  const pwStrengthColor = pwStrength <= 1 ? 'bg-red-500' : pwStrength === 2 ? 'bg-yellow-500' : pwStrength === 3 ? 'bg-blue-500' : 'bg-green-500'
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTouched({ ...touched, [e.target.name]: true })
+  }
+
+  const fieldClass = (name: string) => {
+    const hasError = touched[name] && fieldErrors[name]
+    const isValid = touched[name] && !fieldErrors[name] && formData[name as keyof typeof formData]
+    return `w-full pl-10 pr-4 py-3 border rounded-lg outline-none transition-all ${
+      hasError
+        ? 'border-red-400 focus:ring-2 focus:ring-red-400 bg-red-50'
+        : isValid
+        ? 'border-green-400 focus:ring-2 focus:ring-green-400 bg-green-50'
+        : 'border-gray-300 focus:ring-2 focus:ring-red-600 focus:border-transparent'
+    }`
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setTouched({ fullname: true, email: true, phone: true, address: true, password: true, confirmPassword: true })
+    if (!isFormValid) return
     setError('')
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
-      return
-    }
-
     setLoading(true)
 
     try {
@@ -61,12 +107,9 @@ function RegisterPageContent() {
           address: formData.address,
         }),
       })
-
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Registration failed.')
-
       setSuccess(true)
-      // Pass redirect parameter to verify-pending
       router.push(`/verify-pending?email=${encodeURIComponent(formData.email)}&redirect=${encodeURIComponent(redirect)}`)
     } catch (err: any) {
       setError(err.message || 'Registration failed')
@@ -74,6 +117,24 @@ function RegisterPageContent() {
       setLoading(false)
     }
   }
+
+  const RequiredStar = () => <span className="text-red-500 ml-0.5">*</span>
+
+  const FieldError = ({ name }: { name: string }) =>
+    touched[name] && fieldErrors[name] ? (
+      <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-1.5 text-xs text-red-600 flex items-center space-x-1">
+        <X className="h-3 w-3 flex-shrink-0" />
+        <span>{fieldErrors[name]}</span>
+      </motion.p>
+    ) : null
+
+  const FieldValid = ({ name }: { name: string }) =>
+    touched[name] && !fieldErrors[name] && formData[name as keyof typeof formData] ? (
+      <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mt-1.5 text-xs text-green-600 flex items-center space-x-1">
+        <Check className="h-3 w-3 flex-shrink-0" />
+        <span>Looks good!</span>
+      </motion.p>
+    ) : null
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -93,188 +154,174 @@ function RegisterPageContent() {
               </div>
               <h1 className="text-3xl font-bold text-navy-900 mb-2">Create Account</h1>
               <p className="text-gray-600">Join InstaPulse to enhance your security</p>
+              <p className="text-xs text-gray-400 mt-1">All fields marked <span className="text-red-500">*</span> are required</p>
             </div>
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3"
-              >
-                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{error}</p>
-              </motion.div>
-            )}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3"
+                >
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-800">{error}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {success && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3"
-              >
-                <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-green-800">
-                  <p className="font-semibold mb-1">Account created!</p>
-                  <p>Check your email for a verification link.</p>
-                </div>
-              </motion.div>
-            )}
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Full Name + Phone */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label htmlFor="fullname" className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
+                  <label htmlFor="fullname" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Full Name <RequiredStar />
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
-                      id="fullname"
-                      name="fullname"
-                      type="text"
-                      value={formData.fullname}
-                      onChange={handleChange}
-                      required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                      placeholder="Juan Dela Cruz"
+                      id="fullname" name="fullname" type="text"
+                      value={formData.fullname} onChange={handleChange} onBlur={handleBlur}
+                      className={fieldClass('fullname')} placeholder="Juan Dela Cruz"
                     />
                   </div>
+                  <FieldError name="fullname" />
+                  <FieldValid name="fullname" />
                 </div>
 
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Phone Number <RequiredStar />
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                      placeholder="+63 939 920 8711"
+                      id="phone" name="phone" type="tel"
+                      value={formData.phone} onChange={handleChange} onBlur={handleBlur}
+                      className={fieldClass('phone')} placeholder="09XX XXX XXXX"
                     />
                   </div>
+                  <FieldError name="phone" />
+                  <FieldValid name="phone" />
                 </div>
               </div>
 
+              {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Email Address <RequiredStar />
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="you@example.com"
+                    id="email" name="email" type="email"
+                    value={formData.email} onChange={handleChange} onBlur={handleBlur}
+                    className={fieldClass('email')} placeholder="you@example.com"
                   />
                 </div>
+                <FieldError name="email" />
+                <FieldValid name="email" />
               </div>
 
+              {/* Address */}
               <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Complete Address <RequiredStar />
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
-                    id="address"
-                    name="address"
-                    type="text"
-                    value={formData.address}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="123 Street, City, Philippines"
+                    id="address" name="address" type="text"
+                    value={formData.address} onChange={handleChange} onBlur={handleBlur}
+                    className={fieldClass('address')} placeholder="House No., Street, Barangay, City, Province"
                   />
                 </div>
+                <FieldError name="address" />
+                <FieldValid name="address" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Password + Confirm */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    Password
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Password <RequiredStar />
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
-                      id="password"
-                      name="password"
+                      id="password" name="password"
                       type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                      placeholder="••••••••"
+                      value={formData.password} onChange={handleChange} onBlur={handleBlur}
+                      className={`${fieldClass('password')} pr-12`} placeholder="••••••••"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  <FieldError name="password" />
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Password
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Confirm Password <RequiredStar />
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
-                      id="confirmPassword"
-                      name="confirmPassword"
+                      id="confirmPassword" name="confirmPassword"
                       type={showConfirmPassword ? 'text' : 'password'}
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                      placeholder="••••••••"
+                      value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur}
+                      className={`${fieldClass('confirmPassword')} pr-12`} placeholder="••••••••"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  <FieldError name="confirmPassword" />
+                  <FieldValid name="confirmPassword" />
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-navy-900 mb-3">Password Requirements:</h4>
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-center space-x-2">
-                    <Check className="h-4 w-4 text-green-600" />
-                    <span>At least 6 characters</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <Check className="h-4 w-4 text-green-600" />
-                    <span>Contains letters and numbers</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <Check className="h-4 w-4 text-green-600" />
-                    <span>Special characters recommended</span>
-                  </li>
-                </ul>
-              </div>
+              {/* Password Strength */}
+              {formData.password && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Password Strength</span>
+                    <span className={`text-sm font-semibold ${
+                      pwStrength <= 1 ? 'text-red-600' : pwStrength === 2 ? 'text-yellow-600' : pwStrength === 3 ? 'text-blue-600' : 'text-green-600'
+                    }`}>{pwStrengthLabel}</span>
+                  </div>
+                  <div className="flex space-x-1 mb-3">
+                    {[1,2,3,4].map(i => (
+                      <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${i <= pwStrength ? pwStrengthColor : 'bg-gray-200'}`} />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { check: pwChecks.length, label: 'At least 8 characters' },
+                      { check: pwChecks.upper, label: 'One uppercase letter' },
+                      { check: pwChecks.number, label: 'One number' },
+                      { check: pwChecks.special, label: 'Special character' },
+                    ].map(({ check, label }) => (
+                      <div key={label} className="flex items-center space-x-1.5">
+                        {check
+                          ? <Check className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                          : <X className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />}
+                        <span className={`text-xs ${check ? 'text-green-700' : 'text-gray-400'}`}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-red-600 text-white py-3.5 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed text-base"
               >
                 {loading ? 'Creating account...' : 'Create Account'}
               </button>
