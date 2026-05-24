@@ -47,23 +47,12 @@ function ContactPageContent() {
       sessionStorage.removeItem('contactFormData')
       // Auto-submit after a short delay
       setTimeout(() => {
-        handleSubmit(new Event('submit') as any)
+        submitMessage()
       }, 500)
     }
   }, [authenticated])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Check authentication
-    if (!authenticated) {
-      // Save form data to sessionStorage
-      sessionStorage.setItem('contactFormData', JSON.stringify(formData))
-      // Redirect to login
-      router.push('/login?redirect=/contact')
-      return
-    }
-
+  const submitMessage = async () => {
     setLoading(true)
 
     try {
@@ -75,7 +64,7 @@ function ContactPageContent() {
       }
 
       // Create support ticket
-      const { error } = await (supabase() as any)
+      const { data: ticket, error: ticketError } = await (supabase() as any)
         .from('support_tickets')
         .insert({
           user_id: user.id,
@@ -88,8 +77,20 @@ function ContactPageContent() {
           unread_admin: 1,
           unread_user: 0,
         })
+        .select()
+        .single()
 
-      if (error) throw error
+      if (ticketError) throw ticketError
+
+      // Create initial message in support_messages
+      if (ticket) {
+        await (supabase() as any).from('support_messages').insert({
+          ticket_id: ticket.id,
+          sender_id: user.id,
+          sender_role: 'user',
+          message: formData.message,
+        })
+      }
 
       setSuccess(true)
       setFormData({
@@ -104,6 +105,21 @@ function ContactPageContent() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Check authentication
+    if (!authenticated) {
+      // Save form data to sessionStorage
+      sessionStorage.setItem('contactFormData', JSON.stringify(formData))
+      // Redirect to login
+      router.push('/login?redirect=/contact')
+      return
+    }
+
+    await submitMessage()
   }
 
   return (
