@@ -3,32 +3,13 @@
 import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
-import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send, Camera } from 'lucide-react'
+import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send, Camera, ChevronDown, ChevronUp, ArrowRight, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 function ContactPageContent() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
-    message: '',
-  })
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const router = useRouter()
-  const searchParams = useSearchParams()
   const [authenticated, setAuthenticated] = useState(false)
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -38,348 +19,291 @@ function ContactPageContent() {
     checkAuth()
   }, [])
 
-  useEffect(() => {
-    // Check if returning from login/register with saved form data
-    const savedData = sessionStorage.getItem('contactFormData')
-    if (savedData && authenticated) {
-      const parsed = JSON.parse(savedData)
-      setFormData(parsed)
-      sessionStorage.removeItem('contactFormData')
-      // Auto-submit after a short delay
-      setTimeout(() => {
-        submitMessage()
-      }, 500)
-    }
-  }, [authenticated])
-
-  const submitMessage = async () => {
-    setLoading(true)
-
-    try {
-      const { data: { user } } = await supabase().auth.getUser()
-      if (!user) {
-        sessionStorage.setItem('contactFormData', JSON.stringify(formData))
-        router.push('/login?redirect=/contact')
-        return
-      }
-
-      // Create support ticket
-      const { data: ticket, error: ticketError } = await (supabase() as any)
-        .from('support_tickets')
-        .insert({
-          user_id: user.id,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          subject: formData.subject,
-          message: formData.message,
-          status: 'open',
-          unread_admin: 1,
-          unread_user: 0,
-        })
-        .select()
-        .single()
-
-      if (ticketError) throw ticketError
-
-      // Create initial message in support_messages
-      if (ticket) {
-        await (supabase() as any).from('support_messages').insert({
-          ticket_id: ticket.id,
-          sender_id: user.id,
-          sender_role: 'user',
-          message: formData.message,
-        })
-      }
-
-      setSuccess(true)
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        subject: '',
-        message: '',
-      })
-    } catch (err) {
-      console.error('Form submission error:', err)
-    } finally {
-      setLoading(false)
+  const handleDashboardClick = () => {
+    if (authenticated) {
+      window.location.href = '/dashboard'
+    } else {
+      window.location.href = '/login'
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Check authentication
-    if (!authenticated) {
-      // Save form data to sessionStorage
-      sessionStorage.setItem('contactFormData', JSON.stringify(formData))
-      // Redirect to login
-      router.push('/login?redirect=/contact')
-      return
+  const faqs = [
+    {
+      question: 'How do I contact support?',
+      answer: 'Subscribers can send support requests directly through the Support Messages feature in their InstaPulse dashboard.'
+    },
+    {
+      question: 'How long does support take?',
+      answer: 'Most inquiries receive a response within 24 hours during business days.'
+    },
+    {
+      question: 'Can I request a demo?',
+      answer: 'Yes. Contact us through phone or email to schedule a demonstration.'
+    },
+    {
+      question: 'Do you offer installation services?',
+      answer: 'Yes. Installation is included with eligible package purchases.'
     }
-
-    await submitMessage()
-  }
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       <Navigation />
 
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      {/* Hero Section */}
+      <section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-16"
+            className="text-center"
           >
-            <h1 className="text-4xl sm:text-5xl font-bold text-navy-900 mb-4">
+            <h1 className="text-4xl sm:text-5xl font-bold text-navy-900 mb-6">
               Contact Us
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Get in touch with our team for inquiries, support, or partnership opportunities.
+            <p className="text-lg text-gray-600 mb-4 max-w-2xl mx-auto">
+              Need assistance or have questions about InstaPulse? We're here to help.
+            </p>
+            <p className="text-base text-gray-500 max-w-2xl mx-auto">
+              Whether you're interested in our packages, partnership opportunities, or technical support, our team is ready to assist you.
             </p>
           </motion.div>
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Contact Form */}
+      {/* Support Options Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-12"
+          >
+            <h2 className="text-3xl font-bold text-navy-900 mb-4 text-center">Support Options</h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Existing Customers */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow"
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-xl">
+                  <ShieldCheck className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-navy-900">Already an InstaPulse Subscriber?</h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Use the Support Messages feature inside your dashboard to communicate directly with our support team and track responses in one place.
+              </p>
+              <button
+                onClick={handleDashboardClick}
+                className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center justify-center space-x-2"
+              >
+                <span>Go to Dashboard</span>
+                <ArrowRight className="h-5 w-5" />
+              </button>
+            </motion.div>
+
+            {/* Call Us */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="bg-white rounded-2xl shadow-xl p-8"
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow"
             >
-              <h2 className="text-2xl font-bold text-navy-900 mb-6">Send us a Message</h2>
-
-              {success && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800"
-                >
-                  Message sent successfully! We'll get back to you soon.
-                </motion.div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="Juan Dela Cruz"
-                  />
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-xl">
+                  <Phone className="h-6 w-6 text-blue-600" />
                 </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="you@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="+63 939 920 8711"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                    Subject
-                  </label>
-                  <input
-                    id="subject"
-                    name="subject"
-                    type="text"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all"
-                    placeholder="How can we help?"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                    Message
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    value={formData.message}
-                    onChange={handleChange}
-                    required
-                    rows={5}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-transparent outline-none transition-all resize-none"
-                    placeholder="Tell us more about your inquiry..."
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                >
-                  <Send className="h-5 w-5" />
-                  <span>{loading ? 'Sending...' : 'Send Message'}</span>
-                </button>
-              </form>
+                <h3 className="text-xl font-bold text-navy-900">Call Us</h3>
+              </div>
+              <p className="text-2xl font-bold text-navy-900 mb-2">+63 939 920 8711</p>
+              <p className="text-gray-600">Speak directly with our team for urgent concerns.</p>
             </motion.div>
 
-            {/* Contact Information */}
+            {/* Email Us */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="space-y-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow"
             >
-              <div className="bg-white rounded-2xl shadow-xl p-8">
-                <h2 className="text-2xl font-bold text-navy-900 mb-6">Contact Information</h2>
-
-                <div className="space-y-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-lg">
-                        <Mail className="h-6 w-6 text-red-600" />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-navy-900 mb-1">Email</h3>
-                      <p className="text-gray-600">admin@instapulse.site</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-lg">
-                        <Phone className="h-6 w-6 text-red-600" />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-navy-900 mb-1">Phone</h3>
-                      <p className="text-gray-600">+63 939 920 8711</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-lg">
-                        <MapPin className="h-6 w-6 text-red-600" />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-navy-900 mb-1">Office Location</h3>
-                      <p className="text-gray-600">
-                        1st Crumb, Digos City<br />
-                        Davao del Sur, Philippines
-                      </p>
-                    </div>
-                  </div>
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-xl">
+                  <Mail className="h-6 w-6 text-green-600" />
                 </div>
+                <h3 className="text-xl font-bold text-navy-900">Email Us</h3>
               </div>
-
-              <div className="bg-white rounded-2xl shadow-xl p-8">
-                <h2 className="text-2xl font-bold text-navy-900 mb-6">Follow Us</h2>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <a
-                    href="https://facebook.com/instapulse"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    <Facebook className="h-6 w-6 text-blue-600" />
-                    <span className="font-medium text-navy-900">Facebook</span>
-                  </a>
-
-                  <a
-                    href="https://m.me/instapulse"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    <MessageCircle className="h-6 w-6 text-blue-600" />
-                    <span className="font-medium text-navy-900">Messenger</span>
-                  </a>
-
-                  <a
-                    href="https://t.me/instapulse"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    <Send className="h-6 w-6 text-blue-600" />
-                    <span className="font-medium text-navy-900">Telegram</span>
-                  </a>
-
-                  <a
-                    href="https://instagram.com/instapulse"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-3 p-4 bg-pink-50 rounded-lg hover:bg-pink-100 transition-colors"
-                  >
-                    <Camera className="h-6 w-6 text-pink-600" />
-                    <span className="font-medium text-navy-900">Instagram</span>
-                  </a>
-                </div>
-              </div>
-
-              {/* Google Map */}
-              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div className="p-6 pb-4">
-                  <h2 className="text-xl font-bold text-navy-900 mb-1">Find Us on Map</h2>
-                  <p className="text-sm text-gray-500">Digos City, Davao del Sur, Philippines</p>
-                </div>
-                <div className="h-72">
-                  <iframe
-                    src="https://maps.google.com/maps?q=6.753052349431254,125.36105930450685&z=17&output=embed"
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
-                </div>
-                <div className="px-6 py-3 border-t border-gray-100">
-                  <a
-                    href="https://maps.google.com/?q=6.753052349431254,125.36105930450685"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-red-600 hover:text-red-700 font-medium"
-                  >
-                    Open in Google Maps →
-                  </a>
-                </div>
-              </div>
+              <p className="text-xl font-bold text-navy-900 mb-2">admin@instapulse.site</p>
+              <p className="text-gray-600">For sales inquiries, partnerships, and general questions.</p>
             </motion.div>
+
+            {/* Office Location */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow"
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-xl">
+                  <MapPin className="h-6 w-6 text-purple-600" />
+                </div>
+                <h3 className="text-xl font-bold text-navy-900">Office Location</h3>
+              </div>
+              <p className="text-gray-700 font-medium">
+                1st Crumb, Digos City<br />
+                Davao del Sur, Philippines
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Follow Us Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-8"
+          >
+            <h2 className="text-3xl font-bold text-navy-900 mb-4">Follow Us</h2>
+          </motion.div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <a
+              href="https://facebook.com/instapulse"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
+            >
+              <Facebook className="h-6 w-6 text-blue-600" />
+              <span className="font-medium text-navy-900">Facebook</span>
+            </a>
+
+            <a
+              href="https://m.me/instapulse"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
+            >
+              <MessageCircle className="h-6 w-6 text-blue-600" />
+              <span className="font-medium text-navy-900">Messenger</span>
+            </a>
+
+            <a
+              href="https://t.me/instapulse"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
+            >
+              <Send className="h-6 w-6 text-blue-600" />
+              <span className="font-medium text-navy-900">Telegram</span>
+            </a>
+
+            <a
+              href="https://instagram.com/instapulse"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
+            >
+              <Camera className="h-6 w-6 text-pink-600" />
+              <span className="font-medium text-navy-900">Instagram</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Map Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="bg-white rounded-2xl shadow-xl overflow-hidden"
+          >
+            <div className="p-6 pb-4">
+              <h2 className="text-2xl font-bold text-navy-900 mb-1">Find Us</h2>
+              <p className="text-sm text-gray-500">Digos City, Davao del Sur, Philippines</p>
+            </div>
+            <div className="h-72">
+              <iframe
+                src="https://maps.google.com/maps?q=6.753052349431254,125.36105930450685&z=17&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+            <div className="px-6 py-3 border-t border-gray-100">
+              <a
+                href="https://maps.google.com/?q=6.753052349431254,125.36105930450685"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-red-600 hover:text-red-700 font-medium"
+              >
+                Open in Google Maps →
+              </a>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="max-w-3xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl font-bold text-navy-900 mb-4">Frequently Asked Questions</h2>
+          </motion.div>
+
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+              >
+                <button
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left"
+                >
+                  <span className="font-semibold text-navy-900">{faq.question}</span>
+                  {openFaq === index ? (
+                    <ChevronUp className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                  )}
+                </button>
+                {openFaq === index && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="px-6 pb-4 text-gray-600"
+                  >
+                    {faq.answer}
+                  </motion.div>
+                )}
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
@@ -394,8 +318,7 @@ function ContactPageContent() {
                 <span className="text-xl font-bold">InstaPulse</span>
               </div>
               <p className="text-gray-400">
-                Advanced emergency alert and monitoring system for communities and
-                establishments.
+                Smart emergency alert and monitoring system for communities and organizations.
               </p>
             </div>
             <div>
