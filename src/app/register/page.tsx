@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Lock, User, Phone, MapPin, AlertCircle, Check, Eye, EyeOff, X } from 'lucide-react'
+import { useRecaptcha } from '@/hooks/useRecaptcha'
 
 function RegisterPageContent() {
   const router = useRouter()
@@ -26,6 +27,7 @@ function RegisterPageContent() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [success, setSuccess] = useState(false)
+  const { getToken } = useRecaptcha()
 
   // --- Validation rules ---
   const validate = (data: typeof formData) => {
@@ -96,6 +98,7 @@ function RegisterPageContent() {
     setLoading(true)
 
     try {
+      const recaptchaToken = await getToken('register')
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,6 +109,7 @@ function RegisterPageContent() {
           phone: formData.phone,
           address: formData.address,
           redirect: redirect !== '/dashboard' ? redirect : undefined,
+          recaptchaToken: recaptchaToken ?? undefined,
         }),
       })
       const json = await res.json()

@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { supabaseAdmin } from '@/lib/supabase-server'
+import { verifyRecaptcha } from '@/lib/verifyRecaptcha'
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, full_name, phone, address, redirect } = await req.json()
+    const { email, password, full_name, phone, address, redirect, recaptchaToken } = await req.json()
 
     console.log('[REGISTER] Request received:', { email, full_name })
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
+    }
+
+    // reCAPTCHA verification (skipped gracefully if key not configured)
+    if (recaptchaToken) {
+      const captcha = await verifyRecaptcha(recaptchaToken)
+      if (!captcha.success) {
+        return NextResponse.json({ error: captcha.error || 'Security check failed.' }, { status: 400 })
+      }
     }
 
     // Validate environment variables

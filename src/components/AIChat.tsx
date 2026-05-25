@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Send, Bot, User, RefreshCw, Camera, Radio, Shield, Zap, Check, Phone } from 'lucide-react'
+import { useRecaptcha } from '@/hooks/useRecaptcha'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Message {
@@ -173,6 +174,7 @@ export default function AIChat() {
   const [pendingLeadIndex, setPendingLeadIndex] = useState<number | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const { getToken } = useRecaptcha()
 
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 300) }, [open])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
@@ -219,10 +221,11 @@ export default function AIChat() {
   const submitLead = async (data: LeadData) => {
     try {
       const interest = messages.map(m => m.text).join(' ').substring(0, 200)
+      const recaptchaToken = await getToken('lead_capture')
       await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, interest }),
+        body: JSON.stringify({ ...data, interest, recaptchaToken: recaptchaToken ?? undefined }),
       })
     } catch (_) {}
 

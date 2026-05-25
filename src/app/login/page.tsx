@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
 import { Shield, Mail, Lock, AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useRecaptcha } from '@/hooks/useRecaptcha'
 
 function LoginPageContent() {
   const router = useRouter()
@@ -21,6 +22,7 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [unverifiedEmail, setUnverifiedEmail] = useState('')
+  const { getToken } = useRecaptcha()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,6 +30,19 @@ function LoginPageContent() {
     setLoading(true)
 
     try {
+      const recaptchaToken = await getToken('login')
+      if (recaptchaToken) {
+        const captchaRes = await fetch('/api/verify-recaptcha', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: recaptchaToken }),
+        })
+        if (!captchaRes.ok) {
+          const captchaData = await captchaRes.json()
+          throw new Error(captchaData.error || 'Security check failed. Please try again.')
+        }
+      }
+
       const { data, error } = await supabase().auth.signInWithPassword({
         email,
         password,
