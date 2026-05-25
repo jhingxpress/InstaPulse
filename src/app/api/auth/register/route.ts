@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password, full_name, phone, address } = await req.json()
+    const { email, password, full_name, phone, address, redirect } = await req.json()
 
     console.log('[REGISTER] Request received:', { email, full_name })
 
@@ -108,7 +108,8 @@ export async function POST(req: NextRequest) {
 
     console.log('[REGISTER] Token inserted successfully')
 
-    const verifyUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/verify?token=${token}`
+    const verifyBase = `${process.env.NEXT_PUBLIC_SITE_URL}/verify?token=${token}`
+    const verifyUrl = redirect ? `${verifyBase}&redirect=${encodeURIComponent(redirect)}` : verifyBase
     console.log('[REGISTER] Sending email via Resend to:', email)
 
     // Send via Resend — SDK returns { data, error } and does NOT throw

@@ -31,7 +31,9 @@ function VerifyContent() {
         const data = await res.json()
         if (res.ok && data.success) {
           setStatus('success')
-          setTimeout(() => router.push(`/login?redirect=${encodeURIComponent(redirect)}`), 3000)
+          const params = new URLSearchParams({ verified: '1', redirect })
+          if (data.email) params.set('email', data.email)
+          setTimeout(() => router.push(`/login?${params.toString()}`), 2500)
         } else {
           setStatus('error')
           setMessage(data.error || 'Verification failed.')
@@ -64,7 +66,7 @@ function VerifyContent() {
           <>
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h1>
-            <p className="text-gray-500 mb-6">Your account is now active. Redirecting you to login…</p>
+            <p className="text-gray-500 mb-6">Your account is now active. Redirecting you to sign in…</p>
             <Link
               href="/login"
               className="inline-block bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"

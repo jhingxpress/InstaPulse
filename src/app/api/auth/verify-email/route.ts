@@ -38,7 +38,10 @@ export async function POST(req: NextRequest) {
     // Mark user as verified — this unblocks login
     await db.from('users').update({ email_verified: true }).eq('id', record.user_id)
 
-    return NextResponse.json({ success: true })
+    // Return the user's email so the verify page can pre-fill the login form
+    const { data: userRecord } = await db.from('users').select('email').eq('id', record.user_id).single()
+
+    return NextResponse.json({ success: true, email: userRecord?.email ?? null })
   } catch (err) {
     console.error('verify-email error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

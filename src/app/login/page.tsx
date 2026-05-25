@@ -5,14 +5,17 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Navigation from '@/components/Navigation'
-import { Shield, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Shield, Mail, Lock, AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
-  const [email, setEmail] = useState('')
+  const emailParam = searchParams.get('email') || ''
+  const verified = searchParams.get('verified') === '1'
+
+  const [email, setEmail] = useState(emailParam)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -56,8 +59,14 @@ function LoginPageContent() {
       } else if (profile.role === 'admin') {
         router.push('/admin')
       } else {
-        // Use redirect parameter if provided, otherwise go to dashboard
-        router.push(redirect)
+        // Check for pending package selection from packages page
+        const pendingPackage = typeof window !== 'undefined' ? localStorage.getItem('pendingPackage') : null
+        if (pendingPackage) {
+          localStorage.removeItem('pendingPackage')
+          router.push(`/checkout?package=${pendingPackage}`)
+        } else {
+          router.push(redirect)
+        }
       }
     } catch (err: any) {
       if (err.message?.toLowerCase().includes('email not confirmed')) {
@@ -90,6 +99,20 @@ function LoginPageContent() {
               <h1 className="text-3xl font-bold text-navy-900 mb-2">Welcome Back</h1>
               <p className="text-gray-600">Sign in to your InstaPulse account</p>
             </div>
+
+            {verified && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3"
+              >
+                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-green-800">
+                  <p className="font-semibold">Email verified successfully! ✅</p>
+                  <p>Your account is now active. Please sign in to continue.</p>
+                </div>
+              </motion.div>
+            )}
 
             {error && (
               <motion.div
@@ -178,7 +201,10 @@ function LoginPageContent() {
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Don't have an account?{' '}
-                <Link href="/register" className="text-red-600 hover:text-red-700 font-semibold">
+                <Link
+                  href={redirect !== '/dashboard' ? `/register?redirect=${encodeURIComponent(redirect)}` : '/register'}
+                  className="text-red-600 hover:text-red-700 font-semibold"
+                >
                   Sign up
                 </Link>
               </p>

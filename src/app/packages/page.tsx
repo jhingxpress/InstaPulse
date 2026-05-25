@@ -24,10 +24,14 @@ export default function PackagesPage() {
   }, [])
 
   const handleBuyNow = (pkgId: number) => {
+    const checkoutPath = `/checkout?package=${pkgId}`
     if (!authenticated) {
-      router.push('/register')
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pendingPackage', String(pkgId))
+      }
+      router.push(`/login?redirect=${encodeURIComponent(checkoutPath)}`)
     } else {
-      router.push(`/checkout?package=${pkgId}`)
+      router.push(checkoutPath)
     }
   }
 

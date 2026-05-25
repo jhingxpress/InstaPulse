@@ -105,6 +105,7 @@ function RegisterPageContent() {
           full_name: formData.fullname,
           phone: formData.phone,
           address: formData.address,
+          redirect: redirect !== '/dashboard' ? redirect : undefined,
         }),
       })
       const json = await res.json()
@@ -330,7 +331,10 @@ function RegisterPageContent() {
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Already have an account?{' '}
-                <Link href="/login" className="text-red-600 hover:text-red-700 font-semibold">
+                <Link
+                  href={redirect !== '/dashboard' ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login'}
+                  className="text-red-600 hover:text-red-700 font-semibold"
+                >
                   Sign in
                 </Link>
               </p>
