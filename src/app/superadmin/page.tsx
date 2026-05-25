@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Trash2, Radio, Activity, Globe, BarChart3, AlertOctagon, Wifi } from 'lucide-react'
+import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Trash2, Radio, Activity, Globe, BarChart3, OctagonAlert, Wifi } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { isSuperAdmin, getAllProfiles, updateUserRole, type Profile, type UserRole } from '@/lib/profile'
 import OrderDetailsModal from '@/components/OrderDetailsModal'
@@ -812,7 +812,7 @@ export default function SuperAdminDashboard() {
                 {/* Threat Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
-                    { label: 'Critical Threats',  value: spamAnalytics.criticalCount,  icon: AlertOctagon, color: 'text-red-400',   bg: 'border-red-900 bg-red-950/30'   },
+                    { label: 'Critical Threats',  value: spamAnalytics.criticalCount,  icon: OctagonAlert, color: 'text-red-400',   bg: 'border-red-900 bg-red-950/30'   },
                     { label: 'Threats Today',     value: spamAnalytics.todayCount,     icon: Activity,     color: 'text-amber-400', bg: 'border-amber-900 bg-amber-950/30'},
                     { label: 'Threats This Week', value: spamAnalytics.weekCount,      icon: BarChart3,    color: 'text-blue-400',  bg: 'border-blue-900 bg-blue-950/30'  },
                     { label: 'Total Logged',      value: spamLogs.length,             icon: Database,     color: 'text-gray-300',  bg: 'border-navy-700 bg-navy-900'     },
