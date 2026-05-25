@@ -29,3 +29,8 @@
     @apply bg-navy-900/80 backdrop-blur-md border border-navy-700/20;
   }
 }
+
+/* Hide reCAPTCHA badge — disclosure text is shown in the site footer instead (Google T&C compliant) */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
