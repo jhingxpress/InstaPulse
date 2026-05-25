@@ -155,6 +155,47 @@ export default function SuperAdminDashboard() {
     return () => { supabase().removeChannel(channel) }
   }, [activeTab, fetchSpamLogs])
 
+  // ── Security helpers (must be before early returns — useMemo is a hook) ──
+  const SEVERITY_MAP: Record<string, 'critical' | 'warning' | 'info'> = {
+    honeypot_triggered: 'critical',
+    spam_content_detected: 'critical',
+    rate_limit_exceeded: 'warning',
+    duplicate_submission_60s: 'warning',
+    invalid_phone_format: 'info',
+  }
+  const getSeverity = (reason: string): 'critical' | 'warning' | 'info' => {
+    if (reason?.startsWith('recaptcha_failed')) return 'critical'
+    return SEVERITY_MAP[reason] ?? 'info'
+  }
+  const SEV_STYLES = {
+    critical: { dot: 'bg-red-500',   badge: 'bg-red-950 text-red-300 border border-red-800',   bar: 'bg-red-500'   },
+    warning:  { dot: 'bg-amber-500', badge: 'bg-amber-950 text-amber-300 border border-amber-800', bar: 'bg-amber-500' },
+    info:     { dot: 'bg-blue-500',  badge: 'bg-blue-950 text-blue-300 border border-blue-800',  bar: 'bg-blue-500'  },
+  }
+  const spamAnalytics = useMemo(() => {
+    const now = Date.now()
+    const todayLogs = spamLogs.filter(l => now - new Date(l.created_at).getTime() < 86_400_000)
+    const weekLogs  = spamLogs.filter(l => now - new Date(l.created_at).getTime() < 7 * 86_400_000)
+    const criticalCount = spamLogs.filter(l => getSeverity(l.reason) === 'critical').length
+    const ipMap: Record<string, number> = {}
+    spamLogs.forEach(l => { if (l.ip && l.ip !== 'unknown') ipMap[l.ip] = (ipMap[l.ip] || 0) + 1 })
+    const topIps = Object.entries(ipMap).sort((a, b) => b[1] - a[1]).slice(0, 8)
+    const reasonMap: Record<string, number> = {}
+    spamLogs.forEach(l => { reasonMap[l.reason] = (reasonMap[l.reason] || 0) + 1 })
+    const topReasons = Object.entries(reasonMap).sort((a, b) => b[1] - a[1]).slice(0, 6)
+    return { todayCount: todayLogs.length, weekCount: weekLogs.length, criticalCount, topIps, topReasons }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spamLogs])
+  const filteredSpamLogs = useMemo(() => {
+    if (!spamFilter.trim()) return spamLogs
+    const f = spamFilter.toLowerCase()
+    return spamLogs.filter(l =>
+      (l.ip || '').toLowerCase().includes(f) ||
+      (l.reason || '').toLowerCase().includes(f) ||
+      (l.endpoint || '').toLowerCase().includes(f)
+    )
+  }, [spamLogs, spamFilter])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -179,52 +220,6 @@ export default function SuperAdminDashboard() {
   }
 
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length
-
-  // ── Security helpers ─────────────────────────────────────────────────────────
-  const SEVERITY_MAP: Record<string, 'critical' | 'warning' | 'info'> = {
-    honeypot_triggered: 'critical',
-    spam_content_detected: 'critical',
-    rate_limit_exceeded: 'warning',
-    duplicate_submission_60s: 'warning',
-    invalid_phone_format: 'info',
-  }
-  const getSeverity = (reason: string): 'critical' | 'warning' | 'info' => {
-    if (reason?.startsWith('recaptcha_failed')) return 'critical'
-    return SEVERITY_MAP[reason] ?? 'info'
-  }
-  const SEV_STYLES = {
-    critical: { dot: 'bg-red-500',   badge: 'bg-red-950 text-red-300 border border-red-800',   bar: 'bg-red-500'   },
-    warning:  { dot: 'bg-amber-500', badge: 'bg-amber-950 text-amber-300 border border-amber-800', bar: 'bg-amber-500' },
-    info:     { dot: 'bg-blue-500',  badge: 'bg-blue-950 text-blue-300 border border-blue-800',  bar: 'bg-blue-500'  },
-  }
-
-  const spamAnalytics = useMemo(() => {
-    const now = Date.now()
-    const todayLogs = spamLogs.filter(l => now - new Date(l.created_at).getTime() < 86_400_000)
-    const weekLogs  = spamLogs.filter(l => now - new Date(l.created_at).getTime() < 7 * 86_400_000)
-    const criticalCount = spamLogs.filter(l => getSeverity(l.reason) === 'critical').length
-
-    const ipMap: Record<string, number> = {}
-    spamLogs.forEach(l => { if (l.ip && l.ip !== 'unknown') ipMap[l.ip] = (ipMap[l.ip] || 0) + 1 })
-    const topIps = Object.entries(ipMap).sort((a, b) => b[1] - a[1]).slice(0, 8)
-
-    const reasonMap: Record<string, number> = {}
-    spamLogs.forEach(l => { reasonMap[l.reason] = (reasonMap[l.reason] || 0) + 1 })
-    const topReasons = Object.entries(reasonMap).sort((a, b) => b[1] - a[1]).slice(0, 6)
-
-    return { todayCount: todayLogs.length, weekCount: weekLogs.length, criticalCount, topIps, topReasons }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spamLogs])
-
-  const filteredSpamLogs = useMemo(() => {
-    if (!spamFilter.trim()) return spamLogs
-    const f = spamFilter.toLowerCase()
-    return spamLogs.filter(l =>
-      (l.ip || '').toLowerCase().includes(f) ||
-      (l.reason || '').toLowerCase().includes(f) ||
-      (l.endpoint || '').toLowerCase().includes(f)
-    )
-  }, [spamLogs, spamFilter])
 
   const handleDeleteSelectedLogs = async () => {
     if (selectedLogs.length === 0) return
