@@ -17,6 +17,7 @@ interface LeadData {
   name: string
   phone: string
   location: string
+  honeypot?: string
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ function PackageCard({ pkg }: { pkg: typeof PACKAGES[0] }) {
 }
 
 function LeadForm({ onSubmit, onSkip }: { onSubmit: (data: LeadData) => void; onSkip: () => void }) {
-  const [data, setData] = useState<LeadData>({ name: '', phone: '', location: '' })
+  const [data, setData] = useState<LeadData>({ name: '', phone: '', location: '', honeypot: '' })
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,6 +115,17 @@ function LeadForm({ onSubmit, onSkip }: { onSubmit: (data: LeadData) => void; on
         </div>
       </div>
       <form onSubmit={handleSubmit} className="space-y-2">
+        {/* Honeypot: hidden from real users, bots fill it — triggers silent reject */}
+        <input
+          type="text"
+          name="company"
+          value={data.honeypot ?? ''}
+          onChange={e => setData(p => ({ ...p, honeypot: e.target.value }))}
+          autoComplete="off"
+          tabIndex={-1}
+          aria-hidden="true"
+          style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0 }}
+        />
         <input
           type="text" placeholder="Your Name *" required value={data.name}
           onChange={e => setData(p => ({ ...p, name: e.target.value }))}
@@ -222,10 +234,17 @@ export default function AIChat() {
     try {
       const interest = messages.map(m => m.text).join(' ').substring(0, 200)
       const recaptchaToken = await getToken('lead_capture')
-      await fetch('/api/leads', {
+      await fetch('/api/submit-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, interest, recaptchaToken: recaptchaToken ?? undefined }),
+        body: JSON.stringify({
+          name: data.name,
+          phone: data.phone,
+          location: data.location,
+          interest,
+          honeypot: data.honeypot ?? '',
+          recaptchaToken: recaptchaToken ?? undefined,
+        }),
       })
     } catch (_) {}
 

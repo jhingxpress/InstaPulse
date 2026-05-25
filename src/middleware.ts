@@ -2,7 +2,38 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// Known bad bot User-Agent patterns
+const BOT_UA_PATTERNS = [
+  /python-requests/i, /curl\/[0-9]/i, /wget\//i,
+  /scrapy/i, /go-http-client/i, /libwww-perl/i,
+  /java\/[0-9]/i, /perl\/[0-9]/i, /ruby\/[0-9]/i,
+]
+
+function getClientIp(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+  )
+}
+
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl
+  const ip = getClientIp(req)
+
+  // ── API routes: bot filtering + IP forwarding ──────────────────────────────
+  if (pathname.startsWith('/api/')) {
+    const ua = req.headers.get('user-agent') ?? ''
+    if (BOT_UA_PATTERNS.some(re => re.test(ua))) {
+      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+    }
+
+    // Attach trusted client IP so API route handlers can read it reliably
+    const apiHeaders = new Headers(req.headers)
+    apiHeaders.set('x-client-ip', ip)
+    return NextResponse.next({ request: { headers: apiHeaders } })
+  }
+
   let response = NextResponse.next({ request: req })
 
   const supabase = createServerClient(
@@ -83,5 +114,10 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/superadmin/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/admin/:path*',
+    '/superadmin/:path*',
+    '/api/:path*',
+  ],
 }
