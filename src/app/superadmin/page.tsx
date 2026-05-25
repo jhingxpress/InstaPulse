@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Trash2 } from 'lucide-react'
+import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Trash2, Radio, Activity, Globe, BarChart3, AlertOctagon, Wifi } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { isSuperAdmin, getAllProfiles, updateUserRole, type Profile, type UserRole } from '@/lib/profile'
 import OrderDetailsModal from '@/components/OrderDetailsModal'
@@ -27,6 +27,23 @@ export default function SuperAdminDashboard() {
   const [selectedLogs, setSelectedLogs] = useState<string[]>([])
   const [deletingLogs, setDeletingLogs] = useState(false)
   const lastActivityRef = useRef(Date.now())
+
+  // ── Security Monitoring state ──────────────────────────────────────────────
+  const [spamLogs, setSpamLogs] = useState<any[]>([])
+  const [spamFilter, setSpamFilter] = useState('')
+
+  const fetchSpamLogs = useCallback(async () => {
+    try {
+      const { data } = await (supabase() as any)
+        .from('spam_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200)
+      if (data) setSpamLogs(data)
+    } catch {
+      console.warn('[security] spam_logs table not found — run supabase/spam-logs.sql')
+    }
+  }, [])
 
   const fetchOrders = useCallback(async () => {
     const { data } = await (supabase() as any)
@@ -119,6 +136,25 @@ export default function SuperAdminDashboard() {
     }
   }, [fetchOrders, fetchUnreadSupport])
 
+  // Real-time Supabase subscription for spam_logs (active only on security tab)
+  useEffect(() => {
+    if (activeTab !== 'security') return
+    fetchSpamLogs()
+
+    const channel = supabase()
+      .channel('spam_logs_live')
+      .on(
+        'postgres_changes' as any,
+        { event: 'INSERT', schema: 'public', table: 'spam_logs' },
+        (payload: any) => {
+          setSpamLogs(prev => [payload.new, ...prev].slice(0, 200))
+        }
+      )
+      .subscribe()
+
+    return () => { supabase().removeChannel(channel) }
+  }, [activeTab, fetchSpamLogs])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -143,6 +179,52 @@ export default function SuperAdminDashboard() {
   }
 
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length
+
+  // ── Security helpers ─────────────────────────────────────────────────────────
+  const SEVERITY_MAP: Record<string, 'critical' | 'warning' | 'info'> = {
+    honeypot_triggered: 'critical',
+    spam_content_detected: 'critical',
+    rate_limit_exceeded: 'warning',
+    duplicate_submission_60s: 'warning',
+    invalid_phone_format: 'info',
+  }
+  const getSeverity = (reason: string): 'critical' | 'warning' | 'info' => {
+    if (reason?.startsWith('recaptcha_failed')) return 'critical'
+    return SEVERITY_MAP[reason] ?? 'info'
+  }
+  const SEV_STYLES = {
+    critical: { dot: 'bg-red-500',   badge: 'bg-red-950 text-red-300 border border-red-800',   bar: 'bg-red-500'   },
+    warning:  { dot: 'bg-amber-500', badge: 'bg-amber-950 text-amber-300 border border-amber-800', bar: 'bg-amber-500' },
+    info:     { dot: 'bg-blue-500',  badge: 'bg-blue-950 text-blue-300 border border-blue-800',  bar: 'bg-blue-500'  },
+  }
+
+  const spamAnalytics = useMemo(() => {
+    const now = Date.now()
+    const todayLogs = spamLogs.filter(l => now - new Date(l.created_at).getTime() < 86_400_000)
+    const weekLogs  = spamLogs.filter(l => now - new Date(l.created_at).getTime() < 7 * 86_400_000)
+    const criticalCount = spamLogs.filter(l => getSeverity(l.reason) === 'critical').length
+
+    const ipMap: Record<string, number> = {}
+    spamLogs.forEach(l => { if (l.ip && l.ip !== 'unknown') ipMap[l.ip] = (ipMap[l.ip] || 0) + 1 })
+    const topIps = Object.entries(ipMap).sort((a, b) => b[1] - a[1]).slice(0, 8)
+
+    const reasonMap: Record<string, number> = {}
+    spamLogs.forEach(l => { reasonMap[l.reason] = (reasonMap[l.reason] || 0) + 1 })
+    const topReasons = Object.entries(reasonMap).sort((a, b) => b[1] - a[1]).slice(0, 6)
+
+    return { todayCount: todayLogs.length, weekCount: weekLogs.length, criticalCount, topIps, topReasons }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spamLogs])
+
+  const filteredSpamLogs = useMemo(() => {
+    if (!spamFilter.trim()) return spamLogs
+    const f = spamFilter.toLowerCase()
+    return spamLogs.filter(l =>
+      (l.ip || '').toLowerCase().includes(f) ||
+      (l.reason || '').toLowerCase().includes(f) ||
+      (l.endpoint || '').toLowerCase().includes(f)
+    )
+  }, [spamLogs, spamFilter])
 
   const handleDeleteSelectedLogs = async () => {
     if (selectedLogs.length === 0) return
@@ -205,12 +287,13 @@ export default function SuperAdminDashboard() {
   )
 
   const tabs = [
-    { id: 'overview', name: 'System Overview', icon: Shield, badge: 0 },
-    { id: 'orders',   name: 'Orders',          icon: Package,      badge: pendingOrdersCount },
-    { id: 'support',  name: 'Support Inbox',   icon: MessageSquare, badge: unreadSupportCount },
-    { id: 'users',    name: 'User Management', icon: Users,         badge: 0 },
-    { id: 'audit',    name: 'Audit Logs',      icon: FileText,      badge: 0 },
-    { id: 'settings', name: 'System Settings', icon: Settings,      badge: 0 },
+    { id: 'overview',  name: 'System Overview',    icon: Shield,        badge: 0 },
+    { id: 'orders',    name: 'Orders',             icon: Package,       badge: pendingOrdersCount },
+    { id: 'support',   name: 'Support Inbox',      icon: MessageSquare, badge: unreadSupportCount },
+    { id: 'users',     name: 'User Management',    icon: Users,         badge: 0 },
+    { id: 'audit',     name: 'Audit Logs',         icon: FileText,      badge: 0 },
+    { id: 'security',  name: 'Security Monitoring',icon: Radio,         badge: spamAnalytics.criticalCount },
+    { id: 'settings',  name: 'System Settings',    icon: Settings,      badge: 0 },
   ]
 
   const STATUS_COLORS: Record<string, string> = {
@@ -695,6 +778,217 @@ export default function SuperAdminDashboard() {
                 <div className="bg-navy-900 rounded-xl shadow-lg p-6 border border-navy-800">
                   <p className="text-gray-400">System settings panel coming soon...</p>
                 </div>
+              </div>
+            )}
+
+            {/* ── SECURITY MONITORING CENTER ─────────────────────────────────── */}
+            {activeTab === 'security' && (
+              <div className="space-y-6">
+
+                {/* Mission Control Header */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                      <Radio className="h-6 w-6 text-red-500 animate-pulse" />
+                      Security Monitoring Center
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-1">Real-time threat detection · Bot & abuse prevention</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 bg-green-950 border border-green-800 rounded-lg px-3 py-1.5">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <Wifi className="h-3.5 w-3.5 text-green-400" />
+                      <span className="text-green-400 text-xs font-bold tracking-wider">LIVE</span>
+                    </div>
+                    <button
+                      onClick={fetchSpamLogs}
+                      className="text-gray-400 hover:text-white text-sm px-3 py-1.5 border border-navy-700 rounded-lg transition-colors"
+                    >
+                      ↻ Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {/* Threat Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Critical Threats',  value: spamAnalytics.criticalCount,  icon: AlertOctagon, color: 'text-red-400',   bg: 'border-red-900 bg-red-950/30'   },
+                    { label: 'Threats Today',     value: spamAnalytics.todayCount,     icon: Activity,     color: 'text-amber-400', bg: 'border-amber-900 bg-amber-950/30'},
+                    { label: 'Threats This Week', value: spamAnalytics.weekCount,      icon: BarChart3,    color: 'text-blue-400',  bg: 'border-blue-900 bg-blue-950/30'  },
+                    { label: 'Total Logged',      value: spamLogs.length,             icon: Database,     color: 'text-gray-300',  bg: 'border-navy-700 bg-navy-900'     },
+                  ].map(card => (
+                    <div key={card.label} className={`rounded-xl p-5 border ${card.bg}`}>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <card.icon className={`h-5 w-5 ${card.color}`} />
+                        <span className="text-xs text-gray-400">{card.label}</span>
+                      </div>
+                      <p className={`text-3xl font-bold ${card.color}`}>{card.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Live Feed + Top IPs */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                  {/* Live Activity Feed */}
+                  <div className="lg:col-span-2 bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-navy-800 flex items-center justify-between bg-navy-950">
+                      <h3 className="font-semibold text-white flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-red-400" />
+                        Live Activity Feed
+                      </h3>
+                      <span className="text-xs text-gray-500">{spamLogs.slice(0, 20).length} latest events</span>
+                    </div>
+                    <div className="divide-y divide-navy-800 max-h-72 overflow-y-auto">
+                      {spamLogs.slice(0, 20).map((log: any) => {
+                        const sev = getSeverity(log.reason)
+                        const st = SEV_STYLES[sev]
+                        return (
+                          <div key={log.id} className="px-5 py-3 flex items-start gap-3 hover:bg-navy-800/60 transition-colors">
+                            <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${st.dot}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-xs font-mono px-2 py-0.5 rounded ${st.badge}`}>{log.reason}</span>
+                                <span className="text-xs text-gray-500 font-mono">{log.ip || '—'}</span>
+                              </div>
+                              <p className="text-xs text-gray-600 mt-0.5">{log.endpoint} · {new Date(log.created_at).toLocaleString()}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {spamLogs.length === 0 && (
+                        <div className="px-5 py-10 text-center">
+                          <Shield className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+                          <p className="text-gray-500 text-sm">No threats detected. System is clean.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Top Offending IPs */}
+                  <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-navy-800 bg-navy-950">
+                      <h3 className="font-semibold text-white flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-amber-400" />
+                        Top Offending IPs
+                      </h3>
+                    </div>
+                    <div className="divide-y divide-navy-800">
+                      {spamAnalytics.topIps.map(([ip, count], i) => (
+                        <div key={ip} className="px-5 py-3 flex items-center justify-between hover:bg-navy-800/50 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 w-4">{i + 1}.</span>
+                            <span className="text-sm font-mono text-gray-200 truncate max-w-[130px]" title={ip}>{ip}</span>
+                          </div>
+                          <span className="bg-red-950 text-red-400 border border-red-900 text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                            {count}x
+                          </span>
+                        </div>
+                      ))}
+                      {spamAnalytics.topIps.length === 0 && (
+                        <div className="px-5 py-8 text-center text-gray-500 text-sm">No IP data yet.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Attack Vectors + Full Logs Table */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                  {/* Attack Vector Breakdown */}
+                  <div className="bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-navy-800 bg-navy-950">
+                      <h3 className="font-semibold text-white flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-blue-400" />
+                        Attack Vectors
+                      </h3>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {spamAnalytics.topReasons.map(([reason, count]) => {
+                        const pct = spamLogs.length > 0 ? Math.round((count / spamLogs.length) * 100) : 0
+                        const sev = getSeverity(reason)
+                        const st = SEV_STYLES[sev]
+                        return (
+                          <div key={reason}>
+                            <div className="flex justify-between text-xs mb-1.5">
+                              <span className={`font-mono ${st.badge.includes('red') ? 'text-red-300' : st.badge.includes('amber') ? 'text-amber-300' : 'text-blue-300'} truncate max-w-[160px]`} title={reason}>{reason}</span>
+                              <span className="text-gray-400 ml-2 flex-shrink-0">{count} · {pct}%</span>
+                            </div>
+                            <div className="w-full bg-navy-800 rounded-full h-1.5">
+                              <div className={`${st.bar} h-1.5 rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {spamAnalytics.topReasons.length === 0 && (
+                        <p className="text-gray-500 text-sm text-center py-6">No data yet.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Full Security Logs Table */}
+                  <div className="lg:col-span-2 bg-navy-900 border border-navy-800 rounded-xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-navy-800 bg-navy-950 flex items-center justify-between gap-3 flex-wrap">
+                      <h3 className="font-semibold text-white flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-400" />
+                        Security Log
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+                          <input
+                            type="text"
+                            placeholder="Filter by IP, reason, endpoint..."
+                            value={spamFilter}
+                            onChange={e => setSpamFilter(e.target.value)}
+                            className="pl-8 pr-3 py-1.5 text-xs bg-navy-800 border border-navy-700 rounded-lg text-gray-300 placeholder-gray-600 outline-none focus:ring-1 focus:ring-red-600 w-56"
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 flex-shrink-0">{filteredSpamLogs.length} logs</span>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto overflow-y-auto max-h-72">
+                      <table className="w-full">
+                        <thead className="bg-navy-950 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase w-8">Sev</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">IP</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Reason</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Endpoint</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase whitespace-nowrap">Time</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-navy-800">
+                          {filteredSpamLogs.slice(0, 100).map((log: any) => {
+                            const sev = getSeverity(log.reason)
+                            const st = SEV_STYLES[sev]
+                            return (
+                              <tr key={log.id} className="hover:bg-navy-800/60 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <div className={`w-2.5 h-2.5 rounded-full ${st.dot}`} />
+                                </td>
+                                <td className="px-4 py-2.5 text-xs font-mono text-gray-300">{log.ip || '—'}</td>
+                                <td className="px-4 py-2.5">
+                                  <span className={`text-xs font-mono px-2 py-0.5 rounded ${st.badge}`}>{log.reason}</span>
+                                </td>
+                                <td className="px-4 py-2.5 text-xs text-gray-500">{log.endpoint}</td>
+                                <td className="px-4 py-2.5 text-xs text-gray-500 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                              </tr>
+                            )
+                          })}
+                          {filteredSpamLogs.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-10 text-center text-gray-500 text-sm">
+                                No logs match your filter.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
           </motion.main>
