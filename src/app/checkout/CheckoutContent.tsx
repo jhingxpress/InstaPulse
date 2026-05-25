@@ -23,14 +23,29 @@ export default function CheckoutContent() {
     const checkAuth = async () => {
       const { data: { user } } = await supabase().auth.getUser()
       if (!user) {
-        router.push('/login')
+        const PACKAGE_NAMES: Record<string, string> = {
+          '1': 'Basic Package',
+          '2': 'Standard Package',
+          '3': 'Advanced Package',
+          '4': 'Enterprise Package',
+        }
+        const pkgName = PACKAGE_NAMES[packageId ?? ''] ?? 'Advanced Package'
+        router.push(`/login?redirect=${encodeURIComponent(`/dashboard?purchase=${encodeURIComponent(pkgName)}`)}`)
       } else {
-        setAuthenticated(true)
+        // Redirect to dashboard purchase flow
+        const PACKAGE_NAMES: Record<string, string> = {
+          '1': 'Basic Package',
+          '2': 'Standard Package',
+          '3': 'Advanced Package',
+          '4': 'Enterprise Package',
+        }
+        const pkgName = PACKAGE_NAMES[packageId ?? ''] ?? 'Advanced Package'
+        router.replace(`/dashboard?purchase=${encodeURIComponent(pkgName)}`)
       }
     }
 
     checkAuth()
-  }, [router])
+  }, [router, packageId])
 
   if (!authenticated) {
     return (

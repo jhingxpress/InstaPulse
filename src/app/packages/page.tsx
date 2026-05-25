@@ -24,14 +24,13 @@ export default function PackagesPage() {
   }, [])
 
   const handleBuyNow = (pkgId: number) => {
-    const checkoutPath = `/checkout?package=${pkgId}`
+    const pkg = packages.find(p => p.id === pkgId)
+    const pkgName = pkg?.name ?? 'Advanced Package'
+    const dashboardUrl = `/dashboard?purchase=${encodeURIComponent(pkgName)}`
     if (!authenticated) {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pendingPackage', String(pkgId))
-      }
-      router.push(`/login?redirect=${encodeURIComponent(checkoutPath)}`)
+      router.push(`/login?redirect=${encodeURIComponent(dashboardUrl)}`)
     } else {
-      router.push(checkoutPath)
+      router.push(dashboardUrl)
     }
   }
 

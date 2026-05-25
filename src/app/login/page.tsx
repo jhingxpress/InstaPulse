@@ -59,14 +59,7 @@ function LoginPageContent() {
       } else if (profile.role === 'admin') {
         router.push('/admin')
       } else {
-        // Check for pending package selection from packages page
-        const pendingPackage = typeof window !== 'undefined' ? localStorage.getItem('pendingPackage') : null
-        if (pendingPackage) {
-          localStorage.removeItem('pendingPackage')
-          router.push(`/checkout?package=${pendingPackage}`)
-        } else {
-          router.push(redirect)
-        }
+        router.push(redirect)
       }
     } catch (err: any) {
       if (err.message?.toLowerCase().includes('email not confirmed')) {

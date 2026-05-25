@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare, AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -10,7 +10,9 @@ import PackageModal from '@/components/PackageModal'
 import PaymentModal from '@/components/PaymentModal'
 import SupportPanel from '@/components/SupportPanel'
 
-export default function ClientDashboard() {
+function ClientDashboard() {
+  const searchParams = useSearchParams()
+  const purchaseParam = searchParams.get('purchase')
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [user, setUser] = useState<any>(null)
@@ -29,6 +31,7 @@ export default function ClientDashboard() {
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [settingsError, setSettingsError] = useState('')
   const [settingsSuccess, setSettingsSuccess] = useState('')
+  const [autoTriggered, setAutoTriggered] = useState(false)
   const lastActivityRef = useRef(Date.now())
 
   const fetchUnreadSupport = useCallback(async (userId: string) => {
@@ -100,6 +103,44 @@ export default function ClientDashboard() {
   useEffect(() => {
     fetchDashboardData()
   }, [fetchDashboardData])
+
+  // Auto-open PaymentModal when navigated from packages page with ?purchase=<name>
+  useEffect(() => {
+    if (!purchaseParam || !user || loading || autoTriggered) return
+    setAutoTriggered(true)
+
+    const triggerPurchase = async () => {
+      const { data: pkgs } = await (supabase() as any)
+        .from('packages')
+        .select('id, name, description, price')
+        .eq('is_active', true)
+        .order('price', { ascending: true })
+
+      if (!pkgs) return
+
+      const withItems = await Promise.all(
+        pkgs.map(async (pkg: any) => {
+          const { data: items } = await (supabase() as any)
+            .from('package_items')
+            .select('item_name, quantity')
+            .eq('package_id', pkg.id)
+          return { ...pkg, items: items || [] }
+        })
+      )
+
+      const match = withItems.find((p: any) =>
+        p.name.toLowerCase().includes(purchaseParam.toLowerCase())
+      )
+
+      if (match) {
+        setSelectedPackage(match)
+        setShowPaymentModal(true)
+        router.replace('/dashboard')
+      }
+    }
+
+    triggerPurchase()
+  }, [purchaseParam, user, loading, autoTriggered, router])
 
   // Idle auto-refresh: refresh data after 3 minutes of inactivity
   useEffect(() => {
@@ -221,7 +262,7 @@ export default function ClientDashboard() {
 
   return (
     <>
-      {/* Modals - rendered outside dashboard layout, no redirect */}
+      {/* Modals */}
       <PackageModal
         open={showPackageModal}
         onClose={() => setShowPackageModal(false)}
@@ -608,5 +649,13 @@ export default function ClientDashboard() {
         </div>
       </div>
     </>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <ClientDashboard />
+    </Suspense>
   )
 }
