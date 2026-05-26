@@ -181,23 +181,13 @@ function ContactPageContent() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <a
-              href="https://facebook.com/instapulse"
+              href="https://www.facebook.com/share/1BS8GaxJhz/"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
             >
               <Facebook className="h-6 w-6 text-blue-600" />
               <span className="font-medium text-navy-900">Facebook</span>
-            </a>
-
-            <a
-              href="https://m.me/instapulse"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
-            >
-              <MessageCircle className="h-6 w-6 text-blue-600" />
-              <span className="font-medium text-navy-900">Messenger</span>
             </a>
 
             <a
