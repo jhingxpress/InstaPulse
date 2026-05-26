@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
-import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send, Camera, ChevronDown, ChevronUp, ArrowRight, ShieldCheck } from 'lucide-react'
+import { Shield, Mail, Phone, MapPin, Facebook, MessageCircle, Send, Camera, ChevronDown, ChevronUp, ArrowRight, ShieldCheck, Youtube } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 function ContactPageContent() {
@@ -208,6 +208,16 @@ function ContactPageContent() {
             >
               <Camera className="h-6 w-6 text-pink-600" />
               <span className="font-medium text-navy-900">Instagram</span>
+            </a>
+
+            <a
+              href="https://www.youtube.com/@instapulseadmin"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center space-x-3 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100"
+            >
+              <Youtube className="h-6 w-6 text-red-600" />
+              <span className="font-medium text-navy-900">YouTube</span>
             </a>
           </div>
         </div>
