@@ -141,7 +141,7 @@ function ContactPageContent() {
                 </div>
                 <h3 className="text-xl font-bold text-navy-900">Email Us</h3>
               </div>
-              <p className="text-xl font-bold text-navy-900 mb-2">admin@instapulse.site</p>
+              <p className="text-xl font-bold text-navy-900 mb-2">support@instapulse.site</p>
               <p className="text-gray-600">For sales inquiries, partnerships, and general questions.</p>
             </motion.div>
 

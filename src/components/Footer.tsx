@@ -27,7 +27,7 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Contact</h3>
             <ul className="space-y-2 text-gray-400 text-sm">
-              <li>admin@instapulse.site</li>
+              <li>support@instapulse.site</li>
               <li>+63 939 920 8711</li>
             </ul>
           </div>

@@ -75,7 +75,7 @@ Naturally include urgency when appropriate:
 
 == CONTACT INFO ==
 - Phone: +63 939 920 8711
-- Email: admin@instapulse.site
+- Email: support@instapulse.site
 - Telegram: https://t.me/instapulsedavsur
 - Location: Digos City, Davao del Sur, Philippines
 

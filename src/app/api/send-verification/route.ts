@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     console.log('[SEND-VERIFICATION] Sending email via Resend to:', email)
 
     // Try custom domain first, fallback to Resend's default if not verified
-    const fromEmail = 'InstaPulse <admin@instapulse.site>'
+    const fromEmail = 'InstaPulse <support@instapulse.site>'
     let emailError = null
     let result = null
 
@@ -183,7 +183,7 @@ function buildEmailHtml(verifyUrl: string): string {
             <td style="background-color:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
               <p style="margin:0;font-size:12px;color:#9ca3af;">
                 Need help? Contact us at
-                <a href="mailto:admin@instapulse.site" style="color:#dc2626;text-decoration:none;">admin@instapulse.site</a>
+                <a href="mailto:support@instapulse.site" style="color:#dc2626;text-decoration:none;">support@instapulse.site</a>
               </p>
               <p style="margin:6px 0 0;font-size:11px;color:#d1d5db;">
                 © ${new Date().getFullYear()} InstaPulse. All rights reserved.

@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye } from 'lucide-react'
+import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Smartphone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { isAdmin, getAllProfiles, type Profile } from '@/lib/profile'
 import OrderDetailsModal from '@/components/OrderDetailsModal'
 import SupportPanel from '@/components/SupportPanel'
+import MobileAccessPanel from '@/components/MobileAccessPanel'
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -173,13 +174,18 @@ export default function AdminDashboard() {
 
   const selectedClientProfile = profiles.find(p => p.id === selectedClientId)
 
+  const pendingMobileCount = profiles.filter(
+    (p: any) => (p as any).mobile_app_status === 'pending',
+  ).length
+
   const tabs = [
-    { id: 'overview', name: 'System Overview', icon: Shield,        badge: 0 },
-    { id: 'orders',   name: 'Orders',          icon: Package,       badge: pendingOrdersCount },
-    { id: 'support',  name: 'Support Inbox',   icon: MessageSquare, badge: unreadSupportCount },
-    { id: 'users',    name: 'User Management', icon: Users,         badge: 0 },
-    { id: 'audit',    name: 'Audit Logs',      icon: FileText,      badge: 0 },
-    { id: 'settings', name: 'Settings',        icon: Settings,      badge: 0 },
+    { id: 'overview',       name: 'System Overview',    icon: Shield,        badge: 0 },
+    { id: 'orders',         name: 'Orders',              icon: Package,       badge: pendingOrdersCount },
+    { id: 'support',        name: 'Support Inbox',       icon: MessageSquare, badge: unreadSupportCount },
+    { id: 'users',          name: 'User Management',     icon: Users,         badge: 0 },
+    { id: 'mobile-access',  name: 'Mobile App Access',   icon: Smartphone,    badge: pendingMobileCount },
+    { id: 'audit',          name: 'Audit Logs',          icon: FileText,      badge: 0 },
+    { id: 'settings',       name: 'Settings',            icon: Settings,      badge: 0 },
   ]
 
   return (
@@ -568,6 +574,11 @@ export default function AdminDashboard() {
                   <span>Deleting audit logs requires superadmin privileges.</span>
                 </p>
               </div>
+            )}
+
+            {/* MOBILE APP ACCESS TAB */}
+            {activeTab === 'mobile-access' && (
+              <MobileAccessPanel />
             )}
 
             {activeTab === 'settings' && (

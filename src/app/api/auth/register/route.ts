@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
 
     // Send via Resend — SDK returns { data, error } and does NOT throw
     const sendResult = await resend.emails.send({
-      from: 'InstaPulse <admin@instapulse.site>',
+      from: 'InstaPulse <support@instapulse.site>',
       to: email,
       subject: 'Verify your InstaPulse account',
       html: buildEmailHtml(verifyUrl, full_name),
@@ -190,7 +190,7 @@ function buildEmailHtml(verifyUrl: string, name?: string): string {
         </tr>
         <tr>
           <td style="background-color:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
-            <p style="margin:0;font-size:12px;color:#9ca3af;">Need help? <a href="mailto:admin@instapulse.site" style="color:#dc2626;text-decoration:none;">admin@instapulse.site</a></p>
+            <p style="margin:0;font-size:12px;color:#9ca3af;">Need help? <a href="mailto:support@instapulse.site" style="color:#dc2626;text-decoration:none;">support@instapulse.site</a></p>
             <p style="margin:6px 0 0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} InstaPulse. All rights reserved.</p>
           </td>
         </tr>
