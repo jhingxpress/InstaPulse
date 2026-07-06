@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     console.log('[SEND-VERIFICATION] Sending email via Resend to:', email)
 
     // Try custom domain first, fallback to Resend's default if not verified
-    const fromEmail = 'InstaPulse <support@instapulse.site>'
+    const fromEmail = 'InstaPulse <admin@instapulse.site>'
     let emailError = null
     let result = null
 
@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
       result = await resend.emails.send({
         from: fromEmail,
         to: email,
+        replyTo: ['support@instapulse.site'],
         subject: 'Verify your InstaPulse account',
         html: buildEmailHtml(verifyUrl),
       })
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
         result = await resend.emails.send({
           from: 'InstaPulse <onboarding@resend.dev>',
           to: email,
+          replyTo: ['support@instapulse.site'],
           subject: 'Verify your InstaPulse account',
           html: buildEmailHtml(verifyUrl),
         })

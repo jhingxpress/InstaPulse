@@ -123,8 +123,9 @@ export async function POST(req: NextRequest) {
 
     // Send via Resend — SDK returns { data, error } and does NOT throw
     const sendResult = await resend.emails.send({
-      from: 'InstaPulse <support@instapulse.site>',
+      from: 'InstaPulse <admin@instapulse.site>',
       to: email,
+      replyTo: ['support@instapulse.site'],
       subject: 'Verify your InstaPulse account',
       html: buildEmailHtml(verifyUrl, full_name),
     })
@@ -136,6 +137,7 @@ export async function POST(req: NextRequest) {
       const fallbackResult = await resend.emails.send({
         from: 'InstaPulse <onboarding@resend.dev>',
         to: email,
+        replyTo: ['support@instapulse.site'],
         subject: 'Verify your InstaPulse account',
         html: buildEmailHtml(verifyUrl, full_name),
       })
