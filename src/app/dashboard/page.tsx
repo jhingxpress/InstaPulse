@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare, AlertTriangle, Loader2 } from 'lucide-react'
+import { Shield, Package, CreditCard, FileText, Settings, LogOut, User, CheckCircle, MessageSquare, AlertTriangle, Loader2, Smartphone, Clock, XCircle, Ban } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import PackageModal from '@/components/PackageModal'
 import PaymentModal from '@/components/PaymentModal'
@@ -32,6 +32,8 @@ function ClientDashboard() {
   const [settingsError, setSettingsError] = useState('')
   const [settingsSuccess, setSettingsSuccess] = useState('')
   const [autoTriggered, setAutoTriggered] = useState(false)
+  const [mobileApplying, setMobileApplying] = useState(false)
+  const [mobileApplyError, setMobileApplyError] = useState('')
   const lastActivityRef = useRef(Date.now())
 
   const fetchUnreadSupport = useCallback(async (userId: string) => {
@@ -244,6 +246,24 @@ function ClientDashboard() {
     }
   }
 
+  const handleMobileApply = async () => {
+    setMobileApplyError('')
+    setMobileApplying(true)
+    try {
+      const res = await fetch('/api/mobile-access/apply', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setMobileApplyError(data.error || 'Failed to submit application.')
+      } else {
+        await fetchDashboardData()
+      }
+    } catch {
+      setMobileApplyError('An unexpected error occurred.')
+    } finally {
+      setMobileApplying(false)
+    }
+  }
+
   const handleLogout = async () => {
     await supabase().auth.signOut()
     router.push('/login')
@@ -350,10 +370,11 @@ function ClientDashboard() {
             >
               <nav className="bg-white rounded-xl shadow-lg p-4 space-y-2">
                 {[
-                  { id: 'overview', name: 'Overview',  icon: Shield,       badge: 0 },
-                  { id: 'orders',   name: 'Orders',    icon: Package,      badge: 0 },
-                  { id: 'support',  name: 'Support',   icon: MessageSquare, badge: unreadSupportCount },
-                  { id: 'settings', name: 'Settings',  icon: Settings,     badge: 0 },
+                  { id: 'overview', name: 'Overview',    icon: Shield,        badge: 0 },
+                  { id: 'orders',   name: 'Orders',      icon: Package,       badge: 0 },
+                  { id: 'mobile',   name: 'Mobile App',  icon: Smartphone,    badge: 0 },
+                  { id: 'support',  name: 'Support',     icon: MessageSquare, badge: unreadSupportCount },
+                  { id: 'settings', name: 'Settings',    icon: Settings,      badge: 0 },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -541,6 +562,126 @@ function ClientDashboard() {
                   )}
                 </div>
               )}
+
+              {/* MOBILE APP TAB */}
+              {activeTab === 'mobile' && (() => {
+                const status = profile?.mobile_app_status as string | null | undefined
+                return (
+                  <div className="space-y-6">
+                    <h2 className="text-2xl font-bold text-navy-900">Mobile App Access</h2>
+
+                    {/* Status card */}
+                    {(!status || status === 'rejected' || status === 'disabled') && (
+                      <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Smartphone className="h-6 w-6 text-gray-500" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-bold text-navy-900 mb-1">InstaPulse Alert App</h3>
+                            <p className="text-gray-600 text-sm mb-4">
+                              Apply for access to the InstaPulse Alert mobile application to send emergency alerts directly from your device.
+                            </p>
+                            {status === 'rejected' && (
+                              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-start space-x-2">
+                                <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-sm text-red-800">
+                                  Your previous application was rejected. You may re-apply or contact{' '}
+                                  <a href="mailto:support@instapulse.site" className="underline font-medium">support@instapulse.site</a>{' '}
+                                  for assistance.
+                                </p>
+                              </div>
+                            )}
+                            {status === 'disabled' && (
+                              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 flex items-start space-x-2">
+                                <Ban className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-sm text-orange-800">
+                                  Your mobile app access has been disabled. Please contact{' '}
+                                  <a href="mailto:support@instapulse.site" className="underline font-medium">support@instapulse.site</a>{' '}
+                                  to resolve this.
+                                </p>
+                              </div>
+                            )}
+                            {mobileApplyError && (
+                              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-start space-x-2">
+                                <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-sm text-red-800">{mobileApplyError}</p>
+                              </div>
+                            )}
+                            {status !== 'disabled' && (
+                              <button
+                                onClick={handleMobileApply}
+                                disabled={mobileApplying}
+                                className="inline-flex items-center space-x-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {mobileApplying
+                                  ? <><Loader2 className="h-4 w-4 animate-spin" /><span>Submitting...</span></>
+                                  : <><Smartphone className="h-4 w-4" /><span>Apply for Mobile App Access</span></>
+                                }
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {status === 'pending' && (
+                      <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Clock className="h-6 w-6 text-yellow-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-navy-900 mb-1">Application Pending</h3>
+                            <p className="text-gray-600 text-sm">Your request has been submitted. Please wait for administrator approval.</p>
+                            <span className="inline-block mt-3 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">Pending Review</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {status === 'linked' && (
+                      <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Smartphone className="h-6 w-6 text-blue-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-navy-900 mb-1">Account Linked</h3>
+                            <p className="text-gray-600 text-sm">Your account has been linked and is awaiting final approval.</p>
+                            <span className="inline-block mt-3 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Awaiting Final Approval</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {status === 'approved' && (
+                      <div className="bg-white rounded-xl shadow-lg p-6">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <CheckCircle className="h-6 w-6 text-green-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-navy-900 mb-1">Access Approved</h3>
+                            <p className="text-gray-600 text-sm">Your mobile app access is approved. You may now log in to InstaPulse Alert.</p>
+                            <span className="inline-block mt-3 px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full">Active</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Info card — always shown */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">How it works</h4>
+                      <ol className="space-y-2 text-sm text-gray-600 list-decimal list-inside">
+                        <li>Submit an application from this page.</li>
+                        <li>An administrator reviews your request and links it to your RAN device.</li>
+                        <li>Once approved, download the <strong>InstaPulse Alert</strong> app and sign in with your account.</li>
+                      </ol>
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* SUPPORT TAB */}
               {activeTab === 'support' && (

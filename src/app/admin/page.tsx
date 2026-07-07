@@ -479,6 +479,7 @@ export default function AdminDashboard() {
                       <tr>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Name</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Email</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Contact No.</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Role</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Joined</th>
                       </tr>
@@ -488,6 +489,7 @@ export default function AdminDashboard() {
                         <tr key={profile.id} className="hover:bg-navy-800 transition-colors">
                           <td className="px-6 py-4 text-sm text-white">{profile.full_name || 'Unknown'}</td>
                           <td className="px-6 py-4 text-sm text-white">{profile.email || 'Unknown'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-300">{profile.phone || <span className="text-gray-500 italic">—</span>}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${ROLE_COLORS[profile.role] || 'bg-gray-700 text-gray-300'}`}>
                               {profile.role}
