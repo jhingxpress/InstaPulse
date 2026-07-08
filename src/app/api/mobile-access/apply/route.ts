@@ -3,6 +3,17 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
+const isDev = process.env.NODE_ENV === 'development'
+
+function logSupabaseError(prefix: string, error: any) {
+  console.error(prefix, {
+    code: error?.code,
+    message: error?.message,
+    details: error?.details,
+    hint: error?.hint,
+  })
+}
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies()
   const sb = createServerClient(
@@ -26,13 +37,16 @@ export async function POST(req: NextRequest) {
   const admin = supabaseAdmin()
   const { data: profile, error: fetchError } = await admin
     .from('users')
-    .select('id, mobile_app_status')
+    .select('*')
     .eq('id', user.id)
     .maybeSingle()
 
   if (fetchError) {
-    console.error('[mobile-access/apply] Failed to look up profile for user', user.id, ':', fetchError.message)
-    return NextResponse.json({ error: 'Failed to look up user profile' }, { status: 500 })
+    logSupabaseError('[mobile-access/apply] Profile lookup failed', fetchError)
+    return NextResponse.json(
+      { error: 'Failed to look up user profile', ...(isDev && { details: fetchError.message }) },
+      { status: 500 }
+    )
   }
 
   if (!profile) {
@@ -49,8 +63,11 @@ export async function POST(req: NextRequest) {
     })
 
     if (insertError) {
-      console.error('[mobile-access/apply] Failed to create profile for user', user.id, ':', insertError.message)
-      return NextResponse.json({ error: 'Failed to create user profile' }, { status: 500 })
+      logSupabaseError('[mobile-access/apply] Profile creation failed', insertError)
+      return NextResponse.json(
+        { error: 'Failed to create user profile', ...(isDev && { details: insertError.message }) },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({ success: true, status: 'pending' })
@@ -70,8 +87,11 @@ export async function POST(req: NextRequest) {
     .eq('id', user.id)
 
   if (updateError) {
-    console.error('[mobile-access/apply] Failed to update mobile_app_status for user', user.id, ':', updateError.message)
-    return NextResponse.json({ error: 'Failed to submit application' }, { status: 500 })
+    logSupabaseError('[mobile-access/apply] mobile_app_status update failed', updateError)
+    return NextResponse.json(
+      { error: 'Failed to submit application', ...(isDev && { details: updateError.message }) },
+      { status: 500 }
+    )
   }
 
   return NextResponse.json({ success: true, status: 'pending' })
