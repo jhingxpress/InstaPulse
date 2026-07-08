@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Trash2, Radio, Activity, Globe, BarChart3, OctagonAlert, Wifi } from 'lucide-react'
+import { Shield, Users, FileText, Settings, LogOut, Search, AlertTriangle, Database, Lock, Package, MessageSquare, Eye, Trash2, Radio, Activity, Globe, BarChart3, OctagonAlert, Wifi, Smartphone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { isSuperAdmin, getAllProfiles, updateUserRole, type Profile, type UserRole } from '@/lib/profile'
 import OrderDetailsModal from '@/components/OrderDetailsModal'
 import SupportPanel from '@/components/SupportPanel'
+import MobileAccessPanel from '@/components/MobileAccessPanel'
 
 export default function SuperAdminDashboard() {
   const router = useRouter()
@@ -220,6 +221,7 @@ export default function SuperAdminDashboard() {
   }
 
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length
+  const pendingMobileCount = profiles.filter((p: any) => p.mobile_app_status === 'pending').length
 
   const handleDeleteSelectedLogs = async () => {
     if (selectedLogs.length === 0) return
@@ -282,13 +284,14 @@ export default function SuperAdminDashboard() {
   )
 
   const tabs = [
-    { id: 'overview',  name: 'System Overview',    icon: Shield,        badge: 0 },
-    { id: 'orders',    name: 'Orders',             icon: Package,       badge: pendingOrdersCount },
-    { id: 'support',   name: 'Support Inbox',      icon: MessageSquare, badge: unreadSupportCount },
-    { id: 'users',     name: 'User Management',    icon: Users,         badge: 0 },
-    { id: 'audit',     name: 'Audit Logs',         icon: FileText,      badge: 0 },
-    { id: 'security',  name: 'Security Monitoring',icon: Radio,         badge: spamAnalytics.criticalCount },
-    { id: 'settings',  name: 'System Settings',    icon: Settings,      badge: 0 },
+    { id: 'overview',     name: 'System Overview',     icon: Shield,        badge: 0 },
+    { id: 'orders',       name: 'Orders',            icon: Package,       badge: pendingOrdersCount },
+    { id: 'support',      name: 'Support Inbox',     icon: MessageSquare, badge: unreadSupportCount },
+    { id: 'users',        name: 'User Management',   icon: Users,         badge: 0 },
+    { id: 'mobile-access',name: 'Mobile App Access', icon: Smartphone,    badge: pendingMobileCount },
+    { id: 'audit',        name: 'Audit Logs',        icon: FileText,      badge: 0 },
+    { id: 'security',     name: 'Security Monitoring', icon: Radio,       badge: spamAnalytics.criticalCount },
+    { id: 'settings',     name: 'System Settings',   icon: Settings,      badge: 0 },
   ]
 
   const STATUS_COLORS: Record<string, string> = {
@@ -608,6 +611,13 @@ export default function SuperAdminDashboard() {
             {activeTab === 'support' && (
               <div className="bg-navy-900 border border-navy-800 rounded-xl p-6">
                 <SupportPanel isAdmin={true} darkMode={true} />
+              </div>
+            )}
+
+            {/* MOBILE APP ACCESS TAB */}
+            {activeTab === 'mobile-access' && (
+              <div className="bg-navy-900 border border-navy-800 rounded-xl p-6">
+                <MobileAccessPanel />
               </div>
             )}
 
