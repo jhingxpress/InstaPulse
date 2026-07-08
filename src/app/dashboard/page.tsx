@@ -568,13 +568,13 @@ function ClientDashboard() {
 
               {/* MOBILE APP TAB */}
               {activeTab === 'mobile' && (() => {
-                const status = profile?.mobile_app_status as string | null | undefined
+                const status = (profile?.mobile_app_status as string | null | undefined) || 'not_applied'
                 return (
                   <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-navy-900">Mobile App Access</h2>
 
                     {/* Status card */}
-                    {(!status || status === 'rejected' || status === 'disabled') && (
+                    {(status === 'not_applied' || status === 'rejected' || status === 'disabled') && (
                       <div className="bg-white rounded-xl shadow-lg p-6">
                         <div className="flex items-start space-x-4">
                           <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
