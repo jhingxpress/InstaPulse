@@ -261,9 +261,8 @@ function ClientDashboard() {
         setProfile((prev: any) => ({
           ...(prev || {}),
           id: prev?.id || user?.id,
-          mobile_app_status: 'pending',
+          mobile_app_status: data.status || 'pending',
         }))
-        await fetchDashboardData()
       }
     } catch {
       setMobileApplyError('An unexpected error occurred.')
