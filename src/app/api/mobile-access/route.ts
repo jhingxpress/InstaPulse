@@ -20,6 +20,33 @@ async function verifyAdmin(token: string): Promise<string | null> {
   return user.id
 }
 
+// ─── GET /api/mobile-access ───────────────────────────────────────────────────
+// Returns users with mobile_app_status so the admin panel can bypass RLS.
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get('authorization') ?? ''
+  if (!authHeader.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const adminId = await verifyAdmin(authHeader.slice(7))
+  if (!adminId) {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+  }
+
+  const sb = serviceClient()
+  const { data, error } = await sb
+    .from('users')
+    .select('id, full_name, email, phone, address, mobile_app_status, ran_client_id, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[mobile-access GET]', error.message)
+    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+  }
+
+  return NextResponse.json({ users: data || [] })
+}
+
 // ─── PATCH /api/mobile-access ─────────────────────────────────────────────────
 // Body: { userId, mobile_app_status, ran_client_id? }
 // Rules:

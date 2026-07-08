@@ -468,12 +468,21 @@ export default function MobileAccessPanel() {
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
-    const { data } = await (supabase() as any)
-      .from('users')
-      .select('id, full_name, email, phone, address, mobile_app_status, ran_client_id, created_at')
-      .order('created_at', { ascending: false })
-    setUsers(data || [])
-    setLoading(false)
+    try {
+      const { data: { session } } = await supabase().auth.getSession()
+      if (!session) throw new Error('Session expired — please reload.')
+      const res = await fetch('/api/mobile-access', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+      setUsers(body.users || [])
+    } catch (err: any) {
+      console.error('[MobileAccessPanel] Failed to load users:', err.message)
+      setUsers([])
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { loadUsers() }, [loadUsers])
