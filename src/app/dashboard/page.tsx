@@ -80,11 +80,14 @@ function ClientDashboard() {
           })
         }
       }
-      const { data: userProfile } = await (supabase() as any)
+      const { data: userProfile, error: profileError } = await (supabase() as any)
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
+      if (profileError) {
+        console.error('[dashboard] Error fetching user profile:', profileError)
+      }
       if (userProfile) {
         setProfile(userProfile)
         setSettingsForm({
