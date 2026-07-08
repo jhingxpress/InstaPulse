@@ -258,6 +258,11 @@ function ClientDashboard() {
       if (!res.ok) {
         setMobileApplyError(data.error || 'Failed to submit application.')
       } else {
+        setProfile((prev: any) => ({
+          ...(prev || {}),
+          id: prev?.id || user?.id,
+          mobile_app_status: 'pending',
+        }))
         await fetchDashboardData()
       }
     } catch {
@@ -619,7 +624,7 @@ function ClientDashboard() {
                               >
                                 {mobileApplying
                                   ? <><Loader2 className="h-4 w-4 animate-spin" /><span>Submitting...</span></>
-                                  : <><Smartphone className="h-4 w-4" /><span>Apply for Mobile App Access</span></>
+                                  : <><Smartphone className="h-4 w-4" /><span>{status === 'rejected' ? 'Re-apply for Mobile App Access' : 'Apply for Mobile App Access'}</span></>
                                 }
                               </button>
                             )}
@@ -636,7 +641,7 @@ function ClientDashboard() {
                           </div>
                           <div>
                             <h3 className="text-lg font-bold text-navy-900 mb-1">Application Pending</h3>
-                            <p className="text-gray-600 text-sm">Your request has been submitted. Please wait for administrator approval.</p>
+                            <p className="text-gray-600 text-sm">Your application has been submitted successfully and is awaiting administrator review.</p>
                             <span className="inline-block mt-3 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">Pending Review</span>
                           </div>
                         </div>
