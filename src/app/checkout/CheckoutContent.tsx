@@ -17,7 +17,6 @@ export default function CheckoutContent() {
   const [loading, setLoading] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [agreed, setAgreed] = useState(false)
-  const [showPolicy, setShowPolicy] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -207,61 +206,21 @@ export default function CheckoutContent() {
                 </p>
               </div>
 
-              {/* Policy and Agreement */}
+              {/* Purchase Agreement */}
               <div className="bg-gray-50 rounded-xl p-6 mb-6">
                 <div className="flex items-start space-x-3 mb-4">
                   <FileText className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-navy-900 mb-2">Terms and Conditions</h3>
-                    <button
-                      onClick={() => setShowPolicy(!showPolicy)}
-                      className="text-sm text-red-600 hover:text-red-700 font-medium"
-                    >
-                      {showPolicy ? 'Hide' : 'View'} full policy
-                    </button>
+                    <h3 className="font-semibold text-navy-900 mb-2">Purchase Agreement</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                      By proceeding with this purchase, you confirm that you have reviewed and agreed to the InstaPulse{' '}
+                      <Link href="/terms-and-conditions" className="text-red-600 hover:text-red-700 underline font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 rounded">Terms and Conditions</Link>{' '}
+                      and{' '}
+                      <Link href="/service-policy" className="text-red-600 hover:text-red-700 underline font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 rounded">Service Policy</Link>.
+                      {' '}You understand that InstaPulse is an emergency alert and notification support platform and does not guarantee immediate physical response, prevention of harm, or uninterrupted service.
+                    </p>
                   </div>
                 </div>
-
-                {showPolicy && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="mt-4 text-sm text-gray-600 space-y-3 max-h-96 overflow-y-auto"
-                  >
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h4 className="font-semibold text-navy-900 mb-2">TERMS AND CONDITIONS AGREEMENT</h4>
-                      <p className="text-xs text-gray-500 mb-2">This Terms and Conditions Agreement is entered into by and between:</p>
-                      <p className="text-xs text-gray-500 mb-2">Client: ___________________________</p>
-                      <p className="text-xs text-gray-500 mb-2">Developer: ___________________________</p>
-                      <p className="text-xs text-gray-500 mb-2">Project: Real-Time Alert and Notification System (Project RAN)</p>
-                      <p className="text-xs text-gray-500 mb-4">Effective Date: ___________________________</p>
-                      
-                      <div className="space-y-3 text-xs">
-                        <div><strong>1. ACCEPTANCE OF TERMS</strong><p>By availing and using the Project RAN, the Client agrees to be bound by all the terms and conditions stated herein.</p></div>
-                        <div><strong>2. DESCRIPTION OF SERVICE</strong><p>Project RAN is a real-time emergency alert system that enables the Client to send immediate alerts to the PICC through a push-button device with GPS tracking and CCTV verification for rapid response.</p></div>
-                        <div><strong>3. Scope of Work</strong><p>The Developer agrees to design, install, and implement the Real-Time Alert and Notification System, including devices, CCTV integration, and connectivity with the Provincial Integrated Command Center (PICC).</p></div>
-                        <div><strong>4. Subscription and Package Cost</strong><p>The system is offered as a package deal amounting to ₱20,000, payable upon subscription. This includes the device, installation, and system setup. Payment is required prior to activation.</p></div>
-                        <div><strong>5. Subscription Term</strong><p>The service is valid for one (1) year from activation and is renewable annually. Upon renewal, the Client shall cover the cost of damaged or defective parts.</p></div>
-                        <div><strong>6. Monthly Maintenance Fee</strong><p>The Client agrees to pay a monthly maintenance fee of ₱500. Non-payment may result in service suspension.</p></div>
-                        <div><strong>7. WEAR AND TEAR CHARGES</strong><p>Upon renewal, the system shall be inspected. Any damage or wear and tear shall incur additional charges, including repairs, replacement of parts, and necessary upgrades. All such costs shall be shouldered by the Client.</p></div>
-                        <div><strong>8. Simulation Exercise (SIMEX)</strong><p>The Client agrees to participate in Simulation Exercises (SIMEX) conducted by PICC for calibration and testing purposes.</p></div>
-                        <div><strong>9. CCTV Installation</strong><p>The Client agrees to allow CCTV installation in strategic locations determined by the Developer or PICC and shall not tamper with equipment.</p></div>
-                        <div><strong>10. USE OF SERVICE</strong><p>The system shall be used strictly for emergency purposes only. The Client shall not trigger false or malicious alerts, tamper with the device, or use the system for unauthorized purposes.</p></div>
-                        <div><strong>11. False ALERT POLICY</strong><p>The Client is allowed a maximum of three (3) false alerts. Any excess false alert shall be charged ₱100.00 per incident. Repeated misuse may result in warning, suspension, or termination of service.</p></div>
-                        <div><strong>12. Client Responsibilities</strong><p>The Client agrees to use the system responsibly, provide access for maintenance, and coordinate when necessary.</p></div>
-                        <div><strong>13. SERVICE LEVEL</strong><p>The Developer shall provide 24/7 monitoring, alert acknowledgment within 1–3 minutes, dispatch within 1-3 minutes, and minimum 95% system uptime.</p></div>
-                        <div><strong>14. DEVICE RESPONSIBILITY</strong><p>The Client is responsible for safekeeping of the device and preventing damage or misuse. Repair or replacement due to negligence shall be charged to the Client.</p></div>
-                        <div><strong>15. DATA PRIVACY</strong><p>All data shall be handled in accordance with the Data Privacy Act of 2012 and used solely for emergency and law enforcement purposes.</p></div>
-                        <div><strong>16. LIMITATION OF LIABILITY</strong><p>The Developer shall not be liable for delays due to external factors, force majeure events, or misuse of the system by the Client.</p></div>
-                        <div><strong>17. Termination</strong><p>The Developer may terminate service due to non-payment, misuse of system, or breach of agreement. The Client may terminate with prior written notice and settlement of obligations.</p></div>
-                        <div><strong>18. Governing Law</strong><p>This Agreement shall be governed by the laws of the Republic of the Philippines.</p></div>
-                        <div><strong>19. DISPUTE RESOLUTION</strong><p>Disputes shall be resolved through negotiation, mediation, or legal action.</p></div>
-                        <div><strong>20. EFFECTIVITY</strong><p>This Agreement shall take effect upon signing or system activation.</p></div>
-                        <div><strong>21. ACCEPTANCE</strong><p>By checking the agree box below, both parties agree to all terms stated herein.</p></div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
 
                 <div className="mt-4 flex items-start space-x-3">
                   <input
@@ -269,10 +228,13 @@ export default function CheckoutContent() {
                     id="agreement"
                     checked={agreed}
                     onChange={(e) => setAgreed(e.target.checked)}
-                    className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-600 mt-0.5"
+                    className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-600 mt-0.5 flex-shrink-0"
                   />
-                  <label htmlFor="agreement" className="text-sm text-gray-600">
-                    I have read and agree to the terms and conditions, client responsibilities, seller responsibilities, payment terms, and warranty policy.
+                  <label htmlFor="agreement" className="text-sm text-gray-600 leading-snug">
+                    I have read and agree to the InstaPulse{' '}
+                    <Link href="/terms-and-conditions" className="text-red-600 hover:text-red-700 underline font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 rounded">Terms and Conditions</Link>{' '}
+                    and{' '}
+                    <Link href="/service-policy" className="text-red-600 hover:text-red-700 underline font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 rounded">Service Policy</Link>.
                   </label>
                 </div>
               </div>

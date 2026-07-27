@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
-export default function PolicyPage() {
+export default function ServicePolicyPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navigation />

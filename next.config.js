@@ -8,6 +8,20 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/terms',
+        destination: '/terms-and-conditions',
+        permanent: true,
+      },
+      {
+        source: '/policy',
+        destination: '/service-policy',
+        permanent: true,
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig

@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer className="bg-navy-950 text-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <Shield className="h-8 w-8 text-red-600" />
@@ -18,17 +18,26 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-gray-400 text-sm">
-              <li><Link href="/" className="hover:text-white transition-colors">Home</Link></li>
-              <li><Link href="/how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
-              <li><Link href="/packages" className="hover:text-white transition-colors">Packages</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+              <li><Link href="/" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">Home</Link></li>
+              <li><Link href="/how-it-works" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">How It Works</Link></li>
+              <li><Link href="/packages" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">Packages</Link></li>
+              <li><Link href="/contact" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">Contact</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-semibold mb-4">Legal</h3>
+            <ul className="space-y-2 text-gray-400 text-sm">
+              <li><Link href="/terms-and-conditions" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">Terms and Conditions</Link></li>
+              <li><Link href="/service-policy" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">Service Policy</Link></li>
+              <li><Link href="/privacy" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">Privacy Policy</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="font-semibold mb-4">Contact</h3>
             <ul className="space-y-2 text-gray-400 text-sm">
-              <li>support@instapulse.site</li>
-              <li>+63 939 920 8711</li>
+              <li><a href="mailto:support@instapulse.site" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">support@instapulse.site</a></li>
+              <li><a href="https://instapulse.site" className="hover:text-white transition-colors focus:outline-none focus-visible:underline">instapulse.site</a></li>
+              <li>1st Crumb Street, Zone 3, 8002 City of Digos, Davao del Sur, Philippines</li>
             </ul>
           </div>
         </div>

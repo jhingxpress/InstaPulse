@@ -93,8 +93,8 @@ export default function CookieConsent() {
                   Privacy Policy
                 </Link>
                 {' · '}
-                <Link href="/policy" className="hover:text-red-600 underline underline-offset-2 transition-colors">
-                  Site Policy
+                <Link href="/service-policy" className="hover:text-red-600 underline underline-offset-2 transition-colors">
+                  Service Policy
                 </Link>
               </p>
             </div>
